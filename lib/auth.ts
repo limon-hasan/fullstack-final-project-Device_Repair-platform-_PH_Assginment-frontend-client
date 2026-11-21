@@ -1,21 +1,109 @@
 import { betterAuth } from "better-auth";
-import { MongoClient } from "mongodb";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
+import { MongoClient } from "mongodb";
 
-const client = new MongoClient(process.env.BETTER_AUTH_DB_URI as string);
-const db = client.db("fixmatedb");
+const uri = process.env.BETTER_AUTH_DB_URI as string;
+
+if (!uri) {
+    throw new Error("Missing BETTER_AUTH_DB_URI in .env.local");
+}
+
+const globalForMongo = globalThis as unknown as {
+    fixmateMongoClient?: MongoClient;
+};
+
+const client = globalForMongo.fixmateMongoClient ?? new MongoClient(uri);
+
+if (process.env.NODE_ENV !== "production") {
+    globalForMongo.fixmateMongoClient = client;
+}
+
+const db = client.db("fixMatedb");
+
+const trustedOrigins = [
+    process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS
+        ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
+            .map((origin) => origin.trim())
+            .filter(Boolean)
+        : []),
+];
+
+const hasGoogleCredentials = Boolean(
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+);
 
 export const auth = betterAuth({
     database: mongodbAdapter(db, {
         client,
     }),
+    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    trustedOrigins,
     emailAndPassword: {
         enabled: true,
+        minPasswordLength: 6,
     },
-    socialProviders: {
-        github: {
-            clientId: process.env.GITHUB_CLIENT_ID as string,
-            clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    ...(hasGoogleCredentials
+        ? {
+            socialProviders: {
+                google: {
+                    clientId: process.env.GOOGLE_CLIENT_ID as string,
+                    clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+                },
+            },
+        }
+        : {}),
+    user: {
+        additionalFields: {
+            role: {
+                type: "string",
+                required: false,
+                defaultValue: "customer",
+                input: true,
+            },
+            phone: {
+                type: "string",
+                required: false,
+                defaultValue: "",
+                input: true,
+            },
+            area: {
+                type: "string",
+                required: false,
+                defaultValue: "",
+                input: true,
+            },
+            bio: {
+                type: "string",
+                required: false,
+                defaultValue: "",
+                input: true,
+            },
+        },
+    },
+    databaseHooks: {
+        user: {
+            create: {
+                before: async (user) => {
+                    const rawRole =
+                        typeof user.role === "string"
+                            ? user.role.toLowerCase().trim()
+                            : "customer";
+                    // Strictly block 'admin' or any invalid role during self sign-up
+                    const safeRole =
+                        rawRole === "technician" ? "technician" : "customer";
+
+                    return {
+                        data: {
+                            ...user,
+                            role: safeRole,
+                            phone: typeof user.phone === "string" ? user.phone : "",
+                            area: typeof user.area === "string" ? user.area : "",
+                            bio: typeof user.bio === "string" ? user.bio : "",
+                        },
+                    };
+                },
+            },
         },
     },
 });
