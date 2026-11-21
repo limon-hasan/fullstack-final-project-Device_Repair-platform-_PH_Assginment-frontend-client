@@ -29,9 +29,28 @@ export function Navbar() {
   const router = useRouter()
   const { data: session, isPending } = authClient.useSession()
 
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [mobileOpenPath, setMobileOpenPath] = useState<string | null>(null)
+  const [dropdownOpenPath, setDropdownOpenPath] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const mobileOpen = mobileOpenPath === pathname
+  const dropdownOpen = dropdownOpenPath === pathname
+
+  const setMobileOpen = (next: boolean | ((prev: boolean) => boolean)) => {
+    setMobileOpenPath((prev) => {
+      const current = prev === pathname
+      const value = typeof next === "function" ? next(current) : next
+      return value ? pathname : null
+    })
+  }
+
+  const setDropdownOpen = (next: boolean | ((prev: boolean) => boolean)) => {
+    setDropdownOpenPath((prev) => {
+      const current = prev === pathname
+      const value = typeof next === "function" ? next(current) : next
+      return value ? pathname : null
+    })
+  }
 
   const user = session?.user as
     | {
@@ -47,23 +66,18 @@ export function Navbar() {
   const roleLabel = formatRoleLabel(userRole)
 
   useEffect(() => {
-    setMobileOpen(false)
-    setDropdownOpen(false)
-  }, [pathname])
-
-  useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
       ) {
-        setDropdownOpen(false)
+        setDropdownOpenPath(null)
       }
     }
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setDropdownOpen(false)
-        setMobileOpen(false)
+        setDropdownOpenPath(null)
+        setMobileOpenPath(null)
       }
     }
     document.addEventListener("mousedown", handleOutsideClick)
@@ -82,8 +96,8 @@ export function Navbar() {
   const handleSignOut = async () => {
     try {
       await authClient.signOut()
-      setDropdownOpen(false)
-      setMobileOpen(false)
+      setDropdownOpenPath(null)
+      setMobileOpenPath(null)
       toast.success("Signed out successfully")
       router.push("/")
       router.refresh()
