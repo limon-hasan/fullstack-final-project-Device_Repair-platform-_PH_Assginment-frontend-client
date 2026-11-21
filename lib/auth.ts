@@ -18,25 +18,30 @@ if (process.env.NODE_ENV !== "production") {
     globalForMongo.fixmateMongoClient = client;
 }
 
-const db = client.db("fixMatedb");
+const db = client.db("fixmatedb");
 
-const trustedOrigins = [
-    process.env.BETTER_AUTH_URL || "http://localhost:3000",
-    ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS
-        ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
-            .map((origin) => origin.trim())
-            .filter(Boolean)
-        : []),
-];
+const trustedOrigins = Array.from(
+    new Set(
+        [
+            "http://localhost:3000",
+            process.env.BETTER_AUTH_URL,
+            process.env.NEXT_PUBLIC_APP_URL,
+            ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS
+                ? process.env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
+                    .map((origin) => origin.trim())
+                    .filter(Boolean)
+                : []),
+        ].filter((origin): origin is string => Boolean(origin))
+    )
+);
 
 const hasGoogleCredentials = Boolean(
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
 );
 
 export const auth = betterAuth({
-    database: mongodbAdapter(db, {
-        client,
-    }),
+    database: mongodbAdapter(db),
+    secret: process.env.BETTER_AUTH_SECRET,
     baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
     trustedOrigins,
     emailAndPassword: {
