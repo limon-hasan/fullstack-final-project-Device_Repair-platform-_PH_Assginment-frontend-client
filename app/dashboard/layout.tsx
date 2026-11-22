@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 import {
-  CalendarCheck,
+  CalendarCheck2,
   ClipboardList,
   CreditCard,
   Home,
@@ -21,7 +22,6 @@ import {
   Users,
   Wrench,
   X,
-  type LucideIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
@@ -32,8 +32,7 @@ type UserRole = "customer" | "technician" | "admin"
 interface NavItem {
   label: string
   href: string
-  icon: LucideIcon
-  exact?: boolean
+  icon: React.ComponentType<{ className?: string }>
 }
 
 const ROLE_HOME: Record<UserRole, string> = {
@@ -42,37 +41,29 @@ const ROLE_HOME: Record<UserRole, string> = {
   admin: "/dashboard/admin",
 }
 
-const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
+const ROLE_LABEL: Record<UserRole, string> = {
+  customer: "Customer Dashboard",
+  technician: "Technician Dashboard",
+  admin: "Admin Dashboard",
+}
+
+const ROLE_NAV: Record<UserRole, NavItem[]> = {
   customer: [
-    {
-      label: "Overview",
-      href: "/dashboard/customer",
-      icon: LayoutDashboard,
-      exact: true,
-    },
+    { label: "Overview", href: "/dashboard/customer", icon: LayoutDashboard },
     {
       label: "My Bookings",
       href: "/dashboard/customer/bookings",
-      icon: CalendarCheck,
+      icon: CalendarCheck2,
     },
     {
       label: "Payment History",
       href: "/dashboard/customer/payments",
       icon: CreditCard,
     },
-    {
-      label: "Update Profile",
-      href: "/dashboard/profile",
-      icon: UserCog,
-    },
+    { label: "Update Profile", href: "/dashboard/profile", icon: UserCog },
   ],
   technician: [
-    {
-      label: "Overview",
-      href: "/dashboard/technician",
-      icon: LayoutDashboard,
-      exact: true,
-    },
+    { label: "Overview", href: "/dashboard/technician", icon: LayoutDashboard },
     {
       label: "Add a Service",
       href: "/dashboard/technician/add-service",
@@ -88,24 +79,11 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
       href: "/dashboard/technician/requests",
       icon: ClipboardList,
     },
-    {
-      label: "Update Profile",
-      href: "/dashboard/profile",
-      icon: UserCog,
-    },
+    { label: "Update Profile", href: "/dashboard/profile", icon: UserCog },
   ],
   admin: [
-    {
-      label: "Overview",
-      href: "/dashboard/admin",
-      icon: LayoutDashboard,
-      exact: true,
-    },
-    {
-      label: "Manage Users",
-      href: "/dashboard/admin/users",
-      icon: Users,
-    },
+    { label: "Overview", href: "/dashboard/admin", icon: LayoutDashboard },
+    { label: "Manage Users", href: "/dashboard/admin/users", icon: Users },
     {
       label: "Service Approval",
       href: "/dashboard/admin/services",
@@ -121,25 +99,13 @@ const ROLE_NAV_ITEMS: Record<UserRole, NavItem[]> = {
       href: "/dashboard/admin/transactions",
       icon: Receipt,
     },
-    {
-      label: "Update Profile",
-      href: "/dashboard/profile",
-      icon: UserCog,
-    },
+    { label: "Update Profile", href: "/dashboard/profile", icon: UserCog },
   ],
 }
 
-const ROLE_BADGE_STYLES: Record<UserRole, string> = {
-  customer: "border-primary/30 bg-primary/10 text-primary",
-  technician:
-    "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  admin:
-    "border-indigo-500/30 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400",
-}
-
 function normalizeRole(role?: string | null): UserRole {
-  const lower = (role || "customer").toLowerCase()
-  if (lower === "technician" || lower === "admin") return lower
+  const r = (role || "customer").toLowerCase()
+  if (r === "admin" || r === "technician" || r === "customer") return r
   return "customer"
 }
 
@@ -160,8 +126,14 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { resolvedTheme, setTheme } = useTheme()
   const { data: session, isPending } = authClient.useSession()
 
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  )
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
 
@@ -176,92 +148,89 @@ export default function DashboardLayout({
 
   const role = normalizeRole(user?.role)
 
-  const isRoleMismatch =
-    Boolean(user) &&
-    ((pathname.startsWith("/dashboard/customer") && role !== "customer") ||
-      (pathname.startsWith("/dashboard/technician") && role !== "technician") ||
-      (pathname.startsWith("/dashboard/admin") && role !== "admin"))
-
+  // Route protection & role-based redirect
   useEffect(() => {
     if (isPending) return
 
-    if (!user) {
-      router.replace(`/sign-in?callbackUrl=${encodeURIComponent(pathname)}`)
+    if (!session?.user) {
+      router.replace("/sign-in")
       return
     }
 
-    if (isRoleMismatch) {
+    if (pathname === "/dashboard") {
+      router.replace(ROLE_HOME[role])
+      return
+    }
+
+    if (pathname.startsWith("/dashboard/profile")) {
+      return
+    }
+
+    if (pathname.startsWith("/dashboard/customer") && role !== "customer") {
+      router.replace(ROLE_HOME[role])
+    } else if (
+      pathname.startsWith("/dashboard/technician") &&
+      role !== "technician"
+    ) {
+      router.replace(ROLE_HOME[role])
+    } else if (pathname.startsWith("/dashboard/admin") && role !== "admin") {
       router.replace(ROLE_HOME[role])
     }
-  }, [isPending, user, isRoleMismatch, role, pathname, router])
-
-  const handleToggleTheme = () => {
-    const root = document.documentElement
-    const isCurrentlyDark = root.classList.contains("dark")
-    if (isCurrentlyDark) {
-      root.classList.remove("dark")
-      localStorage.setItem("theme", "light")
-    } else {
-      root.classList.add("dark")
-      localStorage.setItem("theme", "dark")
-    }
-  }
+  }, [isPending, session, pathname, role, router])
 
   const handleSignOut = async () => {
     setSigningOut(true)
     try {
       await authClient.signOut()
-      toast.success("Signed out successfully")
-      router.push("/")
-      router.refresh()
+      toast.success("Signed out successfully.")
+      router.replace("/sign-in")
     } catch {
-      toast.error("Failed to sign out. Please try again.")
-    } finally {
+      toast.error("Failed to sign out.")
       setSigningOut(false)
     }
   }
 
-  // Prevent flicker or premature redirect while session is resolving or redirecting
-  if (isPending || !user || isRoleMismatch) {
+  if (isPending || !session?.user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background text-foreground">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">
-          Loading your dashboard...
-        </p>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          Loading workspace...
+        </div>
       </div>
     )
   }
 
-  const navItems = ROLE_NAV_ITEMS[role]
+  const navItems = ROLE_NAV[role]
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile Backdrop */}
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-xs lg:hidden"
         />
       )}
 
-      {/* Left Sidebar */}
+      {/* Sticky Left Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-card transition-transform duration-200 lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-border bg-card transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between border-b border-border px-5">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-5">
           <Link
             href="/"
-            className="flex items-center gap-2.5 font-heading text-lg font-extrabold tracking-tight text-foreground"
+            onClick={() => setSidebarOpen(false)}
+            className="flex items-center gap-2.5"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
               <Wrench className="h-4 w-4" />
             </span>
-            <span>
+            <span className="font-heading text-lg font-extrabold tracking-tight text-foreground">
               Fix<span className="text-primary">Mate</span>
             </span>
           </Link>
@@ -276,28 +245,21 @@ export default function DashboardLayout({
           </button>
         </div>
 
-        {/* Role Indicator */}
-        <div className="border-b border-border/70 px-5 py-3.5">
+        {/* Role Badge */}
+        <div className="shrink-0 px-5 pt-5 pb-2">
           <p className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
             Workspace
           </p>
-          <span
-            className={cn(
-              "mt-1.5 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize",
-              ROLE_BADGE_STYLES[role]
-            )}
-          >
-            {role} Dashboard
+          <span className="mt-1.5 inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-0.5 text-xs font-semibold text-primary">
+            {ROLE_LABEL[role]}
           </span>
         </div>
 
-        {/* Navigation Links */}
+        {/* Scrollable Nav Links */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`)
+            const isActive = pathname === item.href
 
             return (
               <Link
@@ -318,10 +280,11 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* Sidebar Footer Actions */}
-        <div className="space-y-1.5 border-t border-border p-3">
+        {/* Bottom Actions */}
+        <div className="shrink-0 space-y-1 border-t border-border p-3">
           <Link
             href="/"
+            onClick={() => setSidebarOpen(false)}
             className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Home className="h-4 w-4 shrink-0" />
@@ -330,86 +293,89 @@ export default function DashboardLayout({
 
           <button
             type="button"
-            onClick={handleSignOut}
             disabled={signingOut}
-            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
+            onClick={handleSignOut}
+            className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-rose-500 transition-colors hover:bg-rose-500/10 disabled:opacity-60"
           >
-            <LogOut className="h-4 w-4 shrink-0" />
+            {signingOut ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            ) : (
+              <LogOut className="h-4 w-4 shrink-0" />
+            )}
             <span>{signingOut ? "Signing out..." : "Sign Out"}</span>
           </button>
         </div>
       </aside>
 
-      {/* Right Main Area */}
+      {/* Right Main Column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top Bar */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/85 px-4 backdrop-blur-md sm:px-6">
+        {/* Sticky Top Bar */}
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card/85 px-4 backdrop-blur-md sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open sidebar"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-foreground hover:bg-muted lg:hidden"
+              className="rounded-xl border border-border bg-background p-2 text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
 
             <Link
               href="/"
-              className="hidden items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground sm:inline-flex"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
             >
-              <Home className="h-3.5 w-3.5" />
+              <Home className="h-3.5 w-3.5 text-muted-foreground" />
               Home
             </Link>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
-            <button
-              type="button"
-              onClick={handleToggleTheme}
-              aria-label="Toggle theme"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Sun className="hidden h-4 w-4 text-amber-400 dark:block" />
-              <Moon className="block h-4 w-4 dark:hidden" />
-            </button>
+            {mounted && (
+              <button
+                type="button"
+                onClick={() =>
+                  setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                }
+                aria-label="Toggle theme"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {resolvedTheme === "dark" ? (
+                  <Sun className="h-4 w-4 text-amber-400" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+              </button>
+            )}
 
-            {/* User Info */}
-            <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-background py-1 pr-3 pl-1.5">
-              {user.image ? (
+            <Link
+              href="/dashboard/profile"
+              className="flex items-center gap-2.5 rounded-full border border-border bg-background py-1 pr-3.5 pl-1.5 transition-colors hover:border-primary/40"
+            >
+              {user?.image ? (
                 <img
                   src={user.image}
                   alt={user.name || "User"}
-                  className="h-8 w-8 rounded-xl object-cover"
+                  className="h-7 w-7 rounded-full object-cover"
                 />
               ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/15 text-xs font-bold text-primary">
-                  {getInitials(user.name)}
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+                  {getInitials(user?.name)}
                 </span>
               )}
-
-              <div className="hidden leading-tight sm:block">
-                <p className="max-w-[140px] truncate text-xs font-bold text-foreground">
-                  {user.name || "User"}
+              <div className="hidden text-left sm:block">
+                <p className="text-xs leading-tight font-bold text-foreground">
+                  {user?.name || "User"}
                 </p>
-                <span
-                  className={cn(
-                    "inline-block text-[10px] font-semibold capitalize",
-                    role === "customer" && "text-primary",
-                    role === "technician" &&
-                      "text-amber-600 dark:text-amber-400",
-                    role === "admin" && "text-indigo-600 dark:text-indigo-400"
-                  )}
-                >
+                <p className="text-[11px] leading-tight text-primary capitalize">
                   {role}
-                </span>
+                </p>
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 
-        {/* Page Content (No Public Footer) */}
+        {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
     </div>

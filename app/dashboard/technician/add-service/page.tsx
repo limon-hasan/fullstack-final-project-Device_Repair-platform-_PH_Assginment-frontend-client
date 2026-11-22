@@ -178,7 +178,7 @@ export default function AddServicePage() {
       }
 
       toast.success("Service submitted! It is now waiting for admin approval.")
-      router.push("/dashboard/technician/services")
+      router.push("/dashboard/technician/my-services")
     } catch (err) {
       const message =
         err instanceof Error

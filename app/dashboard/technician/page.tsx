@@ -7,6 +7,7 @@ import {
   Calendar,
   CheckCircle2,
   ClipboardList,
+  Clock,
   DollarSign,
   PlusCircle,
   User,
@@ -85,7 +86,7 @@ export default function TechnicianOverviewPage() {
   const { data: session } = authClient.useSession()
   const user = session?.user as
     { name?: string | null; email?: string | null } | undefined
-  const userEmail = user?.email || ""
+  const userEmail = (user?.email || "").trim().toLowerCase()
 
   const [loading, setLoading] = useState(true)
   const [serviceStats, setServiceStats] = useState<ServiceStats>({
@@ -173,28 +174,32 @@ export default function TechnicianOverviewPage() {
     {
       label: "Total Services",
       value: String(serviceStats.total),
-      sub: `${serviceStats.approved} approved · ${serviceStats.pending} pending`,
+      sub: `${serviceStats.pending} pending · ${serviceStats.rejected} rejected`,
+      href: "/dashboard/technician/my-services",
       icon: Wrench,
       iconBg: "bg-primary/15 text-primary",
     },
     {
-      label: "Active Jobs",
-      value: String(activeJobsCount),
-      sub: `${bookingStats.requested} new requests waiting`,
-      icon: ClipboardList,
-      iconBg: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
-    },
-    {
-      label: "Completed Jobs",
-      value: String(bookingStats.completed),
-      sub: `${bookingStats.total} total bookings received`,
+      label: "Approved Services",
+      value: String(serviceStats.approved),
+      sub: "Live on FixMate marketplace",
+      href: "/dashboard/technician/my-services",
       icon: CheckCircle2,
       iconBg: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
     },
     {
+      label: "Pending Requests",
+      value: String(bookingStats.requested),
+      sub: `${activeJobsCount} active · ${bookingStats.completed} completed`,
+      href: "/dashboard/technician/requests",
+      icon: Clock,
+      iconBg: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
+    },
+    {
       label: "Total Earnings",
       value: `$${Number(bookingStats.earnings || 0).toFixed(0)}`,
-      sub: "From completed & paid repairs",
+      sub: `From ${bookingStats.completed} completed jobs`,
+      href: "/dashboard/technician/requests",
       icon: DollarSign,
       iconBg: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
     },
@@ -226,6 +231,12 @@ export default function TechnicianOverviewPage() {
             Add a Service
           </Link>
           <Link
+            href="/dashboard/technician/my-services"
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+          >
+            My Services
+          </Link>
+          <Link
             href="/dashboard/technician/requests"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
           >
@@ -249,9 +260,10 @@ export default function TechnicianOverviewPage() {
           {statCards.map((card) => {
             const Icon = card.icon
             return (
-              <div
+              <Link
                 key={card.label}
-                className="rounded-3xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/25"
+                href={card.href}
+                className="block rounded-3xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/30"
               >
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -270,7 +282,7 @@ export default function TechnicianOverviewPage() {
                   {card.value}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">{card.sub}</p>
-              </div>
+              </Link>
             )
           })}
         </div>
