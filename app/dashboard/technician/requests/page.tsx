@@ -87,12 +87,38 @@ export default function TechnicianManageRequestsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [finalAmounts, setFinalAmounts] = useState<Record<string, string>>({})
 
-  const fetchBookings = useCallback(
-    async (isManualRefresh = false) => {
-      if (!userEmail) return
-      if (isManualRefresh) setRefreshing(true)
-      else setLoading(true)
+  const fetchBookings = useCallback(async () => {
+    if (!userEmail) return
+    setRefreshing(true)
 
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/bookings/technician?email=${encodeURIComponent(
+          userEmail
+        )}`,
+        { cache: "no-store" }
+      )
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        toast.error(data.message || "Failed to load booking requests.")
+        return
+      }
+
+      setBookings(Array.isArray(data.bookings) ? data.bookings : [])
+    } catch {
+      toast.error("Network error while loading booking requests.")
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [userEmail])
+
+  useEffect(() => {
+    if (!userEmail) return
+
+    let active = true
+    const loadInitial = async () => {
       try {
         const res = await fetch(
           `${API_BASE}/api/bookings/technician?email=${encodeURIComponent(
@@ -102,6 +128,8 @@ export default function TechnicianManageRequestsPage() {
         )
         const data = await res.json().catch(() => ({}))
 
+        if (!active) return
+
         if (!res.ok) {
           toast.error(data.message || "Failed to load booking requests.")
           return
@@ -109,18 +137,19 @@ export default function TechnicianManageRequestsPage() {
 
         setBookings(Array.isArray(data.bookings) ? data.bookings : [])
       } catch {
-        toast.error("Network error while loading booking requests.")
+        if (active) {
+          toast.error("Network error while loading booking requests.")
+        }
       } finally {
-        setLoading(false)
-        setRefreshing(false)
+        if (active) setLoading(false)
       }
-    },
-    [userEmail]
-  )
+    }
 
-  useEffect(() => {
-    fetchBookings(false)
-  }, [fetchBookings])
+    loadInitial()
+    return () => {
+      active = false
+    }
+  }, [userEmail])
 
   const counts = useMemo(() => {
     let requested = 0
@@ -209,7 +238,7 @@ export default function TechnicianManageRequestsPage() {
           prev.map((item) => (item._id === booking._id ? data.booking : item))
         )
       } else {
-        await fetchBookings(true)
+        await fetchBookings()
       }
 
       toast.success(`Request updated to ${formatStatusLabel(nextStatus)}.`)
@@ -249,7 +278,7 @@ export default function TechnicianManageRequestsPage() {
         <button
           type="button"
           disabled={refreshing || loading}
-          onClick={() => fetchBookings(true)}
+          onClick={() => fetchBookings()}
           className="inline-flex items-center gap-2 self-start rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted disabled:opacity-60 sm:self-center"
         >
           <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
