@@ -5,16 +5,19 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   AlertCircle,
+  ArrowRight,
   Calendar,
   CheckCircle2,
   CreditCard,
   FileText,
   Loader2,
-  Lock,
+  Mail,
   MapPin,
   Phone,
   Send,
   ShieldCheck,
+  User,
+  Wrench,
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
@@ -29,9 +32,17 @@ interface BookingRequestCardProps {
 
 interface FormErrors {
   customerPhone?: string
-  customerAddress?: string
+  address?: string
   preferredDate?: string
-  issueDescription?: string
+  problemDescription?: string
+}
+
+function getLocalTodayString() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 export function BookingRequestCard({ service }: BookingRequestCardProps) {
@@ -49,29 +60,53 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
     | undefined
 
   const userRole = (user?.role || "customer").toLowerCase()
-  const today = new Date().toISOString().split("T")[0]
+  const today = getLocalTodayString()
 
+  const [formOpen, setFormOpen] = useState(false)
+  const [submittedSuccess, setSubmittedSuccess] = useState(false)
   const [customerPhone, setCustomerPhone] = useState("")
-  const [customerAddress, setCustomerAddress] = useState("")
+  const [address, setAddress] = useState("")
   const [preferredDate, setPreferredDate] = useState(today)
-  const [issueDescription, setIssueDescription] = useState("")
+  const [problemDescription, setProblemDescription] = useState("")
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
+
+  const handleOpenRequestForm = () => {
+    if (!user) {
+      router.push(
+        `/sign-in?callbackUrl=${encodeURIComponent(`/services/${service._id}`)}`
+      )
+      return
+    }
+
+    if (userRole !== "customer") {
+      return
+    }
+
+    if (!customerPhone && user.phone) {
+      setCustomerPhone(user.phone)
+    }
+    if (!address && user.area) {
+      setAddress(user.area)
+    }
+    setFormOpen(true)
+  }
 
   const validate = (): FormErrors => {
     const nextErrors: FormErrors = {}
     if (!customerPhone.trim() || customerPhone.trim().length < 7) {
       nextErrors.customerPhone = "Please enter a valid contact phone number."
     }
-    if (!customerAddress.trim() || customerAddress.trim().length < 5) {
-      nextErrors.customerAddress = "Please provide your full service address."
+    if (!address.trim() || address.trim().length < 5) {
+      nextErrors.address = "Please provide your full service address."
     }
-    if (!preferredDate) {
-      nextErrors.preferredDate = "Please select a preferred repair date."
+    if (!preferredDate || preferredDate < today) {
+      nextErrors.preferredDate =
+        "Preferred date must be today or a future date."
     }
-    if (!issueDescription.trim() || issueDescription.trim().length < 10) {
-      nextErrors.issueDescription =
-        "Describe the device issue in at least 10 characters."
+    if (!problemDescription.trim() || problemDescription.trim().length < 20) {
+      nextErrors.problemDescription =
+        "Problem description must be at least 20 characters."
     }
     return nextErrors
   }
@@ -92,18 +127,12 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
         credentials: "include",
         body: JSON.stringify({
           serviceId: service._id,
-          serviceTitle: service.title,
-          category: service.category,
-          serviceMode: service.serviceMode,
-          basePrice: service.basePrice,
-          technicianName: service.technicianName,
-          technicianEmail: service.technicianEmail,
-          customerName: user?.name || "Customer",
-          customerEmail: user?.email,
+          customerName: user?.name || "",
+          customerEmail: user?.email || "",
           customerPhone: customerPhone.trim(),
-          customerAddress: customerAddress.trim(),
+          address: address.trim(),
           preferredDate,
-          issueDescription: issueDescription.trim(),
+          problemDescription: problemDescription.trim(),
         }),
       })
 
@@ -111,16 +140,14 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
 
       if (!res.ok) {
         toast.error(
-          data.message || "Could not submit booking request. Please try again."
+          data.message || "Could not submit repair request. Please try again."
         )
         return
       }
 
-      toast.success(
-        "Repair request sent! Track live updates in your dashboard."
-      )
-      router.push("/dashboard/customer")
-      router.refresh()
+      toast.success("Repair request submitted! Track status in My Bookings.")
+      setSubmittedSuccess(true)
+      setFormOpen(false)
     } catch {
       toast.error("Network error while sending request. Please try again.")
     } finally {
@@ -128,13 +155,15 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
     }
   }
 
+  const descLength = problemDescription.trim().length
+
   return (
     <aside className="sticky top-24 rounded-3xl border border-border bg-card p-6 shadow-md sm:p-7">
       {/* Pricing Header */}
       <div className="flex items-end justify-between border-b border-border pb-5">
         <div>
           <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Starting Estimate
+            Starting Price
           </p>
           <p className="mt-1 font-heading text-3xl font-extrabold text-foreground">
             <span className="text-brand-amber">$</span>
@@ -143,7 +172,7 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          {service.isAvailable ? "Available Now" : "Currently Paused"}
+          {service.isAvailable ? "Available Now" : "Unavailable"}
         </span>
       </div>
 
@@ -156,64 +185,122 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
         </p>
       </div>
 
-      {/* Conditional Booking Area */}
+      {/* Action / Form Area */}
       <div className="mt-6">
-        {!service.isAvailable ? (
-          <div className="rounded-2xl border border-border bg-muted/50 p-4 text-center text-sm text-muted-foreground">
-            This service is temporarily unavailable for new requests.
-          </div>
-        ) : isPending ? (
-          <div className="space-y-3">
-            <div className="h-10 w-full animate-pulse rounded-xl bg-muted" />
-            <div className="h-10 w-full animate-pulse rounded-xl bg-muted" />
-            <div className="h-24 w-full animate-pulse rounded-xl bg-muted" />
-          </div>
-        ) : !user ? (
-          <div className="space-y-4 rounded-2xl border border-border bg-background/70 p-5 text-center">
-            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Lock className="h-5 w-5" />
+        {isPending ? (
+          <div className="h-12 w-full animate-pulse rounded-xl bg-muted" />
+        ) : submittedSuccess ? (
+          <div className="space-y-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center">
+            <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-6 w-6" />
             </span>
             <div>
               <h3 className="font-heading text-base font-bold text-foreground">
-                Sign in to book this repair
+                Repair Request Sent!
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                Sign in with your Customer account to send a repair request and
-                track job updates live.
+                Your booking is now in <strong>Requested</strong> status. Track
+                live updates or cancel before acceptance from My Bookings.
               </p>
             </div>
-            <div className="flex flex-col gap-2">
-              <Link
-                href={`/sign-in?callbackUrl=${encodeURIComponent(`/services/${service._id}`)}`}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-              >
-                Sign In to Continue
-              </Link>
-              <Link
-                href="/sign-up"
-                className="inline-flex w-full items-center justify-center rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-              >
-                Create Customer Account
-              </Link>
+            <Link
+              href="/dashboard/customer/bookings"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+            >
+              Go to My Bookings
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        ) : user && userRole !== "customer" ? (
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled
+              className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl bg-muted px-5 py-3 text-sm font-semibold text-muted-foreground opacity-70"
+            >
+              <Wrench className="h-4 w-4" />
+              Request Repair
+            </button>
+            <div className="flex items-start gap-2.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                <strong>Only customers can request a repair.</strong> You are
+                currently signed in as{" "}
+                <span className="capitalize">{userRole}</span>.
+              </p>
             </div>
           </div>
-        ) : userRole !== "customer" ? (
-          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-800 dark:text-amber-200">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <div>
-              <p className="font-semibold">Customer account required</p>
-              <p className="mt-1">
-                You are currently signed in as a{" "}
-                <strong className="capitalize">{userRole}</strong>. Only
-                Customer accounts can submit repair booking requests.
+        ) : !formOpen ? (
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={handleOpenRequestForm}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90"
+            >
+              <Wrench className="h-4 w-4" />
+              Request Repair
+            </button>
+            {!user && (
+              <p className="text-center text-xs text-muted-foreground">
+                You will be redirected to Sign In and returned right back to
+                this service.
               </p>
-            </div>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
-            <h3 className="font-heading text-base font-bold text-foreground">
-              Send a Repair Request
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-heading text-base font-bold text-foreground">
+                Repair Request Details
+              </h3>
+              <button
+                type="button"
+                onClick={() => setFormOpen(false)}
+                className="text-xs font-medium text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Read-only Name */}
+            <div className="space-y-1">
+              <label
+                htmlFor="booking-name"
+                className="block text-xs font-semibold text-foreground"
+              >
+                Your Name
+              </label>
+              <div className="relative">
+                <User className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="booking-name"
+                  type="text"
+                  value={user?.name || ""}
+                  readOnly
+                  className="w-full cursor-not-allowed rounded-xl border border-border bg-muted/60 py-2.5 pr-3 pl-10 text-sm text-muted-foreground focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Read-only Email */}
+            <div className="space-y-1">
+              <label
+                htmlFor="booking-email"
+                className="block text-xs font-semibold text-foreground"
+              >
+                Your Email
+              </label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="booking-email"
+                  type="email"
+                  value={user?.email || ""}
+                  readOnly
+                  className="w-full cursor-not-allowed rounded-xl border border-border bg-muted/60 py-2.5 pr-3 pl-10 text-sm text-muted-foreground focus:outline-none"
+                />
+              </div>
+            </div>
 
             {/* Phone */}
             <div className="space-y-1">
@@ -221,7 +308,7 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
                 htmlFor="booking-phone"
                 className="block text-xs font-semibold text-foreground"
               >
-                Contact Phone
+                Phone Number
               </label>
               <div className="relative">
                 <Phone className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -247,6 +334,39 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
                 <p className="text-xs text-destructive">
                   {errors.customerPhone}
                 </p>
+              )}
+            </div>
+
+            {/* Address */}
+            <div className="space-y-1">
+              <label
+                htmlFor="booking-address"
+                className="block text-xs font-semibold text-foreground"
+              >
+                Service Address
+              </label>
+              <div className="relative">
+                <MapPin className="pointer-events-none absolute top-3 left-3.5 h-4 w-4 text-muted-foreground" />
+                <input
+                  id="booking-address"
+                  type="text"
+                  placeholder="House, Road, Area (e.g. Dhanmondi, Dhaka)"
+                  value={address}
+                  onChange={(e) => {
+                    setAddress(e.target.value)
+                    if (errors.address)
+                      setErrors((p) => ({ ...p, address: undefined }))
+                  }}
+                  className={cn(
+                    "w-full rounded-xl border bg-background py-2.5 pr-3 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:outline-none",
+                    errors.address
+                      ? "border-destructive focus:ring-destructive/20"
+                      : "border-input focus:border-primary focus:ring-primary/20"
+                  )}
+                />
+              </div>
+              {errors.address && (
+                <p className="text-xs text-destructive">{errors.address}</p>
               )}
             </div>
 
@@ -285,72 +405,52 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
               )}
             </div>
 
-            {/* Address */}
+            {/* Problem Description */}
             <div className="space-y-1">
-              <label
-                htmlFor="booking-address"
-                className="block text-xs font-semibold text-foreground"
-              >
-                Service Address / Location
-              </label>
-              <div className="relative">
-                <MapPin className="pointer-events-none absolute top-3 left-3.5 h-4 w-4 text-muted-foreground" />
-                <input
-                  id="booking-address"
-                  type="text"
-                  placeholder="House, Road, Area (e.g. Dhanmondi, Dhaka)"
-                  value={customerAddress}
-                  onChange={(e) => {
-                    setCustomerAddress(e.target.value)
-                    if (errors.customerAddress)
-                      setErrors((p) => ({ ...p, customerAddress: undefined }))
-                  }}
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="booking-problem"
+                  className="block text-xs font-semibold text-foreground"
+                >
+                  Problem Description
+                </label>
+                <span
                   className={cn(
-                    "w-full rounded-xl border bg-background py-2.5 pr-3 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:outline-none",
-                    errors.customerAddress
-                      ? "border-destructive focus:ring-destructive/20"
-                      : "border-input focus:border-primary focus:ring-primary/20"
+                    "text-[11px] font-medium",
+                    descLength >= 20
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-muted-foreground"
                   )}
-                />
+                >
+                  {descLength}/20 min
+                </span>
               </div>
-              {errors.customerAddress && (
-                <p className="text-xs text-destructive">
-                  {errors.customerAddress}
-                </p>
-              )}
-            </div>
-
-            {/* Issue Description */}
-            <div className="space-y-1">
-              <label
-                htmlFor="booking-issue"
-                className="block text-xs font-semibold text-foreground"
-              >
-                Describe the Issue
-              </label>
               <div className="relative">
                 <FileText className="pointer-events-none absolute top-3 left-3.5 h-4 w-4 text-muted-foreground" />
                 <textarea
-                  id="booking-issue"
+                  id="booking-problem"
                   rows={3}
-                  placeholder="Mention device model, symptoms, or error codes..."
-                  value={issueDescription}
+                  placeholder="Describe device model, issue symptoms, or error codes (at least 20 characters)..."
+                  value={problemDescription}
                   onChange={(e) => {
-                    setIssueDescription(e.target.value)
-                    if (errors.issueDescription)
-                      setErrors((p) => ({ ...p, issueDescription: undefined }))
+                    setProblemDescription(e.target.value)
+                    if (errors.problemDescription)
+                      setErrors((p) => ({
+                        ...p,
+                        problemDescription: undefined,
+                      }))
                   }}
                   className={cn(
                     "w-full resize-none rounded-xl border bg-background py-2.5 pr-3 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:outline-none",
-                    errors.issueDescription
+                    errors.problemDescription
                       ? "border-destructive focus:ring-destructive/20"
                       : "border-input focus:border-primary focus:ring-primary/20"
                   )}
                 />
               </div>
-              {errors.issueDescription && (
+              {errors.problemDescription && (
                 <p className="text-xs text-destructive">
-                  {errors.issueDescription}
+                  {errors.problemDescription}
                 </p>
               )}
             </div>
@@ -363,19 +463,19 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Sending Request...
+                  Submitting Request...
                 </>
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  Confirm Repair Request
+                  Submit Repair Request
                 </>
               )}
             </button>
 
             <p className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
               <CreditCard className="h-3.5 w-3.5 text-brand-amber" />
-              Final bill paid securely after technician completes the job
+              Pay online via Stripe only after completion
             </p>
           </form>
         )}
