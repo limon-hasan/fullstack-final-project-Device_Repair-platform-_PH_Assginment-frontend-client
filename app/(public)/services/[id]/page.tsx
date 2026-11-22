@@ -155,7 +155,7 @@ export default async function ServiceDetailsPage({
             {/* Description */}
             <div className="mt-7 border-t border-border pt-6">
               <h2 className="font-heading text-lg font-bold text-foreground">
-                What's Included
+                {"What's Included"}
               </h2>
               <p className="mt-2.5 text-sm leading-relaxed whitespace-pre-line text-muted-foreground">
                 {service.description}
