@@ -6,11 +6,9 @@ import {
   CheckCircle2,
   Clock,
   Home,
-  Mail,
   MapPin,
   ShieldCheck,
   Store,
-  UserCheck,
   Wrench,
 } from "lucide-react"
 import { BookingRequestCard } from "@/components/services/booking-request-card"
@@ -31,6 +29,16 @@ async function getServiceById(id: string): Promise<RepairService | null> {
   }
 }
 
+function getInitials(name?: string) {
+  if (!name) return "TX"
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+}
+
 export default async function ServiceDetailsPage({
   params,
 }: {
@@ -39,15 +47,26 @@ export default async function ServiceDetailsPage({
   const { id } = await params
   const service = await getServiceById(id)
 
-  if (!service || !service._id) {
+  if (
+    !service ||
+    !service._id ||
+    service.approvalStatus !== "approved" ||
+    !service.isAvailable
+  ) {
     notFound()
   }
 
   const isHomeVisit = service.serviceMode?.toLowerCase().includes("home")
+  const techName = service.technician?.name || service.technicianName
+  const techPhoto = service.technician?.image || ""
+  const techArea = service.technician?.area || service.serviceArea || "Dhaka"
+  const techBio =
+    service.technician?.bio ||
+    "Admin-verified FixMate technician specializing in reliable diagnostics and device repair."
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-      {/* Breadcrumb Back Link */}
+      {/* Back Link */}
       <Link
         href="/services"
         className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"
@@ -59,7 +78,7 @@ export default async function ServiceDetailsPage({
       <div className="mt-6 grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
         {/* Left Main Content */}
         <div className="space-y-6 lg:col-span-7 xl:col-span-8">
-          {/* Hero Service Image */}
+          {/* Large Service Image */}
           <div className="relative overflow-hidden rounded-3xl border border-border bg-muted shadow-sm">
             <div className="aspect-[16/9] w-full">
               {service.image ? (
@@ -103,7 +122,7 @@ export default async function ServiceDetailsPage({
               {service.title}
             </h1>
 
-            {/* Quick Spec Pills */}
+            {/* Quick Specs */}
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="flex items-center gap-3 rounded-2xl border border-border bg-background p-3.5">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -111,7 +130,7 @@ export default async function ServiceDetailsPage({
                 </span>
                 <div>
                   <p className="text-[11px] font-medium text-muted-foreground">
-                    Estimated Time
+                    Estimated Duration
                   </p>
                   <p className="text-sm font-bold text-foreground">
                     {service.estimatedDuration || "1–2 hours"}
@@ -162,7 +181,7 @@ export default async function ServiceDetailsPage({
               </p>
             </div>
 
-            {/* Repair Pipeline Guarantees */}
+            {/* Guarantees */}
             <div className="mt-7 grid grid-cols-1 gap-3 border-t border-border pt-6 sm:grid-cols-2">
               {[
                 "Live 4-step status tracking inside your dashboard",
@@ -181,30 +200,45 @@ export default async function ServiceDetailsPage({
             </div>
           </div>
 
-          {/* Technician Card */}
-          <div className="flex flex-col justify-between gap-4 rounded-3xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center">
-            <div className="flex items-center gap-4">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-                <UserCheck className="h-6 w-6" />
-              </span>
-              <div>
-                <p className="text-xs font-semibold tracking-wider text-primary uppercase">
-                  Assigned Technician
-                </p>
-                <h3 className="font-heading text-lg font-bold text-foreground">
-                  {service.technicianName}
-                </h3>
-                <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Mail className="h-3.5 w-3.5" />
-                  {service.technicianEmail}
-                </p>
+          {/* Technician Summary Card (name, photo, area, bio) */}
+          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-7">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+              <div className="flex items-start gap-4">
+                {techPhoto ? (
+                  <img
+                    src={techPhoto}
+                    alt={techName}
+                    className="h-14 w-14 shrink-0 rounded-2xl object-cover ring-2 ring-primary/20"
+                  />
+                ) : (
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/15 font-heading text-base font-bold text-primary">
+                    {getInitials(techName)}
+                  </span>
+                )}
+
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold tracking-wider text-primary uppercase">
+                    Technician Summary
+                  </p>
+                  <h3 className="font-heading text-lg font-bold text-foreground">
+                    {techName}
+                  </h3>
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 text-brand-amber" />
+                    {techArea}
+                  </p>
+                </div>
               </div>
+
+              <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary">
+                <ShieldCheck className="h-4 w-4" />
+                Verified Technician
+              </span>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 self-start rounded-full border border-primary/25 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary sm:self-auto">
-              <ShieldCheck className="h-4 w-4" />
-              Verified FixMate Pro
-            </span>
+            <p className="mt-4 border-t border-border/70 pt-4 text-sm leading-relaxed text-muted-foreground">
+              {techBio}
+            </p>
           </div>
         </div>
 

@@ -1,3 +1,10 @@
+export interface TechnicianSummary {
+    name: string;
+    image?: string;
+    area?: string;
+    bio?: string;
+}
+
 export interface RepairService {
     _id: string;
     title: string;
@@ -13,4 +20,5 @@ export interface RepairService {
     approvalStatus: "pending" | "approved" | "rejected";
     isAvailable: boolean;
     createdAt: string;
+    technician?: TechnicianSummary;
 }
