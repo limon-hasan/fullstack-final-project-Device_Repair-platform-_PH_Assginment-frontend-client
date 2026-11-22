@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
+  AlertTriangle,
   Calendar,
   CheckCircle2,
   ClipboardList,
@@ -13,6 +14,7 @@ import {
   RefreshCw,
   User,
   Wrench,
+  X,
   XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -85,7 +87,16 @@ export default function TechnicianManageRequestsPage() {
   const [bookings, setBookings] = useState<TechnicianBooking[]>([])
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all")
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [finalAmounts, setFinalAmounts] = useState<Record<string, string>>({})
+
+  // Reject Confirmation Modal
+  const [rejectTarget, setRejectTarget] = useState<TechnicianBooking | null>(
+    null
+  )
+
+  // Mark Completed Modal (pre-filled with basePrice)
+  const [completeTarget, setCompleteTarget] =
+    useState<TechnicianBooking | null>(null)
+  const [modalFinalAmount, setModalFinalAmount] = useState("")
 
   const fetchBookings = useCallback(async () => {
     if (!userEmail) return
@@ -192,8 +203,9 @@ export default function TechnicianManageRequestsPage() {
 
   const handleStatusUpdate = async (
     booking: TechnicianBooking,
-    nextStatus: "accepted" | "rejected" | "in-progress" | "completed"
-  ) => {
+    nextStatus: "accepted" | "rejected" | "in-progress" | "completed",
+    finalAmountOverride?: number
+  ): Promise<boolean> => {
     const payload: {
       status: string
       technicianEmail: string
@@ -204,15 +216,15 @@ export default function TechnicianManageRequestsPage() {
     }
 
     if (nextStatus === "completed") {
-      const rawValue =
-        finalAmounts[booking._id] ??
-        String(booking.finalAmount ?? booking.basePrice ?? "")
-      const parsed = Number(rawValue)
-      if (!Number.isFinite(parsed) || parsed <= 0) {
+      if (
+        finalAmountOverride === undefined ||
+        !Number.isFinite(finalAmountOverride) ||
+        finalAmountOverride <= 0
+      ) {
         toast.error("Please enter a valid final amount greater than 0.")
-        return
+        return false
       }
-      payload.finalAmount = parsed
+      payload.finalAmount = finalAmountOverride
     }
 
     setUpdatingId(booking._id)
@@ -230,7 +242,7 @@ export default function TechnicianManageRequestsPage() {
 
       if (!res.ok) {
         toast.error(data.message || "Failed to update booking status.")
-        return
+        return false
       }
 
       if (data.booking) {
@@ -242,10 +254,42 @@ export default function TechnicianManageRequestsPage() {
       }
 
       toast.success(`Request updated to ${formatStatusLabel(nextStatus)}.`)
+      return true
     } catch {
       toast.error("Network error while updating booking status.")
+      return false
     } finally {
       setUpdatingId(null)
+    }
+  }
+
+  const openCompleteModal = (booking: TechnicianBooking) => {
+    setCompleteTarget(booking)
+    setModalFinalAmount(String(booking.basePrice ?? booking.finalAmount ?? ""))
+  }
+
+  const handleConfirmReject = async () => {
+    if (!rejectTarget) return
+    const ok = await handleStatusUpdate(rejectTarget, "rejected")
+    if (ok) {
+      setRejectTarget(null)
+    }
+  }
+
+  const handleConfirmComplete = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!completeTarget) return
+
+    const parsed = Number(modalFinalAmount)
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      toast.error("Final amount must be a positive number.")
+      return
+    }
+
+    const ok = await handleStatusUpdate(completeTarget, "completed", parsed)
+    if (ok) {
+      setCompleteTarget(null)
+      setModalFinalAmount("")
     }
   }
 
@@ -354,8 +398,6 @@ export default function TechnicianManageRequestsPage() {
             const currentAmount = Number(
               booking.finalAmount ?? booking.basePrice ?? 0
             )
-            const finalAmountInput =
-              finalAmounts[booking._id] ?? String(currentAmount)
 
             return (
               <div
@@ -390,16 +432,19 @@ export default function TechnicianManageRequestsPage() {
                         >
                           {formatStatusLabel(statusKey)}
                         </span>
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
-                            isPaid
-                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                              : "border-border bg-muted text-muted-foreground"
-                          )}
-                        >
-                          {isPaid ? "Paid" : "Unpaid"}
-                        </span>
+
+                        {statusKey === "completed" && (
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                              isPaid
+                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                            )}
+                          >
+                            {isPaid ? "Paid" : "Unpaid"}
+                          </span>
+                        )}
                       </div>
 
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -413,7 +458,7 @@ export default function TechnicianManageRequestsPage() {
                     <span className="block text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
                       {statusKey === "completed"
                         ? "Final Charge"
-                        : "Est. Price"}
+                        : "Base Price"}
                     </span>
                     <span className="font-heading text-xl font-extrabold text-foreground">
                       ${currentAmount.toFixed(0)}
@@ -466,11 +511,11 @@ export default function TechnicianManageRequestsPage() {
                 <div className="mt-4 flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-xs text-muted-foreground">
                     {statusKey === "requested" &&
-                      "Review customer details and accept or decline this request."}
+                      "Review customer details and accept or reject this request."}
                     {statusKey === "accepted" &&
                       "Ready to begin? Start work once you arrive or receive the device."}
                     {statusKey === "in-progress" &&
-                      "Confirm the final repair charge before marking this job complete."}
+                      "Once the repair is finished, mark completed and set the final charge."}
                     {statusKey === "completed" &&
                       (isPaid
                         ? "Repair completed and customer payment settled."
@@ -485,9 +530,7 @@ export default function TechnicianManageRequestsPage() {
                         <button
                           type="button"
                           disabled={isUpdating}
-                          onClick={() =>
-                            handleStatusUpdate(booking, "rejected")
-                          }
+                          onClick={() => setRejectTarget(booking)}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-500/20 disabled:opacity-60 dark:text-rose-400"
                         >
                           <XCircle className="h-3.5 w-3.5" />
@@ -531,47 +574,159 @@ export default function TechnicianManageRequestsPage() {
                     )}
 
                     {statusKey === "in-progress" && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="relative flex items-center">
-                          <DollarSign className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                          <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            aria-label="Final charge amount"
-                            value={finalAmountInput}
-                            onChange={(e) =>
-                              setFinalAmounts((prev) => ({
-                                ...prev,
-                                [booking._id]: e.target.value,
-                              }))
-                            }
-                            className="w-28 rounded-xl border border-border bg-background py-2 pr-3 pl-7 text-xs font-semibold text-foreground focus:border-primary focus:outline-none"
-                          />
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() =>
-                            handleStatusUpdate(booking, "completed")
-                          }
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60"
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          )}
-                          Mark Completed
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => openCompleteModal(booking)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Mark Completed
+                      </button>
                     )}
                   </div>
                 </div>
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Reject Confirmation Modal */}
+      {rejectTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Reject this repair request?
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  You are about to decline{" "}
+                  <span className="font-semibold text-foreground">
+                    “{rejectTarget.serviceTitle}”
+                  </span>{" "}
+                  requested by{" "}
+                  <span className="font-semibold text-foreground">
+                    {rejectTarget.customerName || rejectTarget.customerEmail}
+                  </span>
+                  . This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={updatingId === rejectTarget._id}
+                onClick={() => setRejectTarget(null)}
+                className="rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+              >
+                Keep Request
+              </button>
+              <button
+                type="button"
+                disabled={updatingId === rejectTarget._id}
+                onClick={handleConfirmReject}
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-60"
+              >
+                {updatingId === rejectTarget._id && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                )}
+                {updatingId === rejectTarget._id
+                  ? "Rejecting..."
+                  : "Yes, Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mark Completed Final Amount Modal */}
+      {completeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-lg font-bold text-foreground">
+                  Complete Repair & Set Final Charge
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Enter the final billable amount for{" "}
+                  <span className="font-semibold text-foreground">
+                    {completeTarget.serviceTitle}
+                  </span>
+                  . The customer will pay this amount via Stripe.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={updatingId === completeTarget._id}
+                onClick={() => setCompleteTarget(null)}
+                className="rounded-xl p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmComplete} className="mt-5 space-y-4">
+              <div>
+                <div className="mb-1.5 flex items-center justify-between text-xs">
+                  <label
+                    htmlFor="modal-final-amount"
+                    className="font-semibold text-foreground"
+                  >
+                    Final Amount (USD) *
+                  </label>
+                  <span className="text-muted-foreground">
+                    Base price: $
+                    {Number(completeTarget.basePrice || 0).toFixed(0)}
+                  </span>
+                </div>
+                <div className="relative">
+                  <DollarSign className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    id="modal-final-amount"
+                    type="number"
+                    required
+                    min="1"
+                    step="0.01"
+                    value={modalFinalAmount}
+                    onChange={(e) => setModalFinalAmount(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background py-2.5 pr-4 pl-10 text-sm font-semibold text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  disabled={updatingId === completeTarget._id}
+                  onClick={() => setCompleteTarget(null)}
+                  className="rounded-xl border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingId === completeTarget._id}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {updatingId === completeTarget._id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  )}
+                  {updatingId === completeTarget._id
+                    ? "Completing..."
+                    : "Confirm & Mark Completed"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
