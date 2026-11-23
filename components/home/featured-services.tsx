@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowRight, Sparkles, Wrench } from "lucide-react"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { ServiceCard } from "@/components/services/service-card"
 import type { RepairService } from "@/types/service"
 
@@ -17,9 +18,10 @@ export function FeaturedServices() {
 
     async function fetchFeaturedServices() {
       try {
+        const authHeaders = await getAuthHeaders().catch(() => ({}))
         const res = await fetch(
           `${API_BASE}/api/services?limit=6&sort=newest`,
-          { cache: "no-store" }
+          { cache: "no-store", headers: authHeaders }
         )
         if (!res.ok) {
           if (active) setServices([])

@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
+import { getAuthHeaders } from "@/lib/auth-token"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -112,18 +113,19 @@ export default function TechnicianOverviewPage() {
     const loadOverview = async () => {
       setLoading(true)
       try {
+        const authHeaders = await getAuthHeaders()
         const [servicesRes, bookingsRes] = await Promise.all([
           fetch(
             `${API_BASE}/api/services/technician?email=${encodeURIComponent(
               userEmail
             )}`,
-            { cache: "no-store" }
+            { cache: "no-store", headers: authHeaders }
           ),
           fetch(
             `${API_BASE}/api/bookings/technician?email=${encodeURIComponent(
               userEmail
             )}`,
-            { cache: "no-store" }
+            { cache: "no-store", headers: authHeaders }
           ),
         ])
 
@@ -146,7 +148,11 @@ export default function TechnicianOverviewPage() {
         }
 
         if (!servicesRes.ok && !bookingsRes.ok) {
-          toast.error("Failed to load technician dashboard data.")
+          toast.error(
+            servicesData.message ||
+              bookingsData.message ||
+              "Failed to load technician dashboard data."
+          )
         }
       } catch {
         if (active) {

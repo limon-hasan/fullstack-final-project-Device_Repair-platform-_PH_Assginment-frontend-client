@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { uploadImageToImgBB } from "@/lib/imgbb"
 import { cn } from "@/lib/utils"
 
@@ -106,11 +107,12 @@ export default function TechnicianMyServicesPage() {
   const loadServices = useCallback(async () => {
     if (!userEmail) return
     try {
+      const authHeaders = await getAuthHeaders()
       const res = await fetch(
         `${API_BASE}/api/services/technician?email=${encodeURIComponent(
           userEmail
         )}`,
-        { cache: "no-store" }
+        { cache: "no-store", headers: authHeaders }
       )
       const data = await res.json().catch(() => ({}))
 
@@ -139,11 +141,12 @@ export default function TechnicianMyServicesPage() {
 
     const init = async () => {
       try {
+        const authHeaders = await getAuthHeaders()
         const res = await fetch(
           `${API_BASE}/api/services/technician?email=${encodeURIComponent(
             userEmail
           )}`,
-          { cache: "no-store" }
+          { cache: "no-store", headers: authHeaders }
         )
         const data = await res.json().catch(() => ({}))
         if (!active) return
@@ -203,9 +206,12 @@ export default function TechnicianMyServicesPage() {
     setTogglingId(service._id)
 
     try {
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(`${API_BASE}/api/services/${service._id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({
           technicianEmail: userEmail,
           isAvailable: nextAvailable,
@@ -334,11 +340,14 @@ export default function TechnicianMyServicesPage() {
         imageUrl = await uploadImageToImgBB(editImageFile)
       }
 
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(
         `${API_BASE}/api/services/${editingService._id}`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify({
             technicianEmail: userEmail,
             title: trimmedTitle,
@@ -386,11 +395,12 @@ export default function TechnicianMyServicesPage() {
     setDeleting(true)
 
     try {
+      const authHeaders = await getAuthHeaders()
       const res = await fetch(
         `${API_BASE}/api/services/${deletingService._id}?email=${encodeURIComponent(
           userEmail
         )}`,
-        { method: "DELETE" }
+        { method: "DELETE", headers: authHeaders }
       )
       const data = await res.json().catch(() => ({}))
 

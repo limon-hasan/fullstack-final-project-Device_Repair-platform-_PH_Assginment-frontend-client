@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { cn } from "@/lib/utils"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -68,11 +69,12 @@ export default function CustomerPaymentsPage() {
     const loadPayments = async () => {
       setLoading(true)
       try {
+        const authHeaders = await getAuthHeaders()
         const res = await fetch(
           `${API_BASE}/api/payments/customer?email=${encodeURIComponent(
             userEmail
           )}`,
-          { cache: "no-store" }
+          { cache: "no-store", headers: authHeaders }
         )
         const data = await res.json().catch(() => ({}))
 

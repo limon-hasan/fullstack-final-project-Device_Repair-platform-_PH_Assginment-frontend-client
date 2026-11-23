@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
+import { getAuthHeaders } from "@/lib/auth-token"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -196,8 +197,10 @@ export default function AdminOverviewPage() {
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null)
 
   const fetchOverviewData = async () => {
+    const authHeaders = await getAuthHeaders()
     const res = await fetch(`${API_BASE}/api/admin/overview`, {
       cache: "no-store",
+      headers: authHeaders,
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -329,7 +332,7 @@ export default function AdminOverviewPage() {
 
     return { items, total, radius, circumference }
   }, [charts.bookingStatusCounts, stats])
-  
+
   const activeSlice = useMemo(() => {
     if (!hoveredStatus) return null
     return donutSlices.items.find((item) => item.key === hoveredStatus) || null

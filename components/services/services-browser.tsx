@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react"
 import { SERVICE_CATEGORIES, SERVICE_MODES } from "@/lib/constants"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { ServiceCard } from "@/components/services/service-card"
 import type { RepairService } from "@/types/service"
 import { cn } from "@/lib/utils"
@@ -81,10 +82,13 @@ export function ServicesBrowser() {
         if (urlMode && urlMode !== "All") params.set("serviceMode", urlMode)
         if (urlSort) params.set("sort", urlSort)
 
+        const authHeaders = await getAuthHeaders().catch(() => ({}))
+
         const res = await fetch(
           `${API_BASE}/api/services?${params.toString()}`,
           {
             cache: "no-store",
+            headers: authHeaders,
             signal: controller.signal,
           }
         )

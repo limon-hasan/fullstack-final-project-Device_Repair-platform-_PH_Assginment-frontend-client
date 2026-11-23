@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { uploadImageToImgBB } from "@/lib/imgbb"
 import { cn } from "@/lib/utils"
 
@@ -77,9 +78,10 @@ export default function UpdateProfilePage() {
     let active = true
     const loadProfile = async () => {
       try {
+        const authHeaders = await getAuthHeaders()
         const res = await fetch(
           `${API_BASE}/api/users/profile?email=${encodeURIComponent(userEmail)}`,
-          { cache: "no-store" }
+          { cache: "no-store", headers: authHeaders }
         )
         const data = await res.json().catch(() => ({}))
 
@@ -179,10 +181,12 @@ export default function UpdateProfilePage() {
       }
 
       setSaveStep("saving")
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(`${API_BASE}/api/users/profile`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: authHeaders,
         body: JSON.stringify({
           email: email || userEmail,
           name: trimmedName,

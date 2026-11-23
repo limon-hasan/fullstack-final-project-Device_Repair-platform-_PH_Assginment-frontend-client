@@ -13,6 +13,7 @@ import {
   Receipt,
 } from "lucide-react"
 import { toast } from "sonner"
+import { getAuthHeaders } from "@/lib/auth-token"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -73,9 +74,13 @@ function PaymentSuccessContent() {
       }
 
       try {
+        const authHeaders = await getAuthHeaders({
+          "Content-Type": "application/json",
+        })
+
         const res = await fetch(`${API_BASE}/api/payments/verify-session`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify({ sessionId }),
         })
 

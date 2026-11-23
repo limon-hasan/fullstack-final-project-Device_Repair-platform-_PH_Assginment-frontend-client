@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react"
 import { toast } from "sonner"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { cn } from "@/lib/utils"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -64,8 +65,10 @@ export default function AdminServiceApprovalPage() {
   const [rejectionReason, setRejectionReason] = useState("")
 
   const fetchAllServices = async () => {
+    const authHeaders = await getAuthHeaders()
     const res = await fetch(`${API_BASE}/api/admin/services?status=all`, {
       cache: "no-store",
+      headers: authHeaders,
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -161,11 +164,14 @@ export default function AdminServiceApprovalPage() {
   ): Promise<boolean> => {
     setUpdatingId(service._id)
     try {
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(
         `${API_BASE}/api/admin/services/${service._id}/approval`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify({
             approvalStatus,
             ...(approvalStatus === "rejected" && reason

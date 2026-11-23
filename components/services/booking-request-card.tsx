@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import type { RepairService } from "@/types/service"
 import { cn } from "@/lib/utils"
 
@@ -119,12 +120,13 @@ export function BookingRequestCard({ service }: BookingRequestCardProps) {
 
     setSubmitting(true)
     try {
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
+
       const res = await fetch(`${API_BASE}/api/bookings`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
+        headers: authHeaders,
         body: JSON.stringify({
           serviceId: service._id,
           customerName: user?.name || "",

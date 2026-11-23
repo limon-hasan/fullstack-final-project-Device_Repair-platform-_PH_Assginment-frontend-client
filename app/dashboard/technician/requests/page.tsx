@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { cn } from "@/lib/utils"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -103,11 +104,12 @@ export default function TechnicianManageRequestsPage() {
     setRefreshing(true)
 
     try {
+      const authHeaders = await getAuthHeaders()
       const res = await fetch(
         `${API_BASE}/api/bookings/technician?email=${encodeURIComponent(
           userEmail
         )}`,
-        { cache: "no-store" }
+        { cache: "no-store", headers: authHeaders }
       )
       const data = await res.json().catch(() => ({}))
 
@@ -131,11 +133,12 @@ export default function TechnicianManageRequestsPage() {
     let active = true
     const loadInitial = async () => {
       try {
+        const authHeaders = await getAuthHeaders()
         const res = await fetch(
           `${API_BASE}/api/bookings/technician?email=${encodeURIComponent(
             userEmail
           )}`,
-          { cache: "no-store" }
+          { cache: "no-store", headers: authHeaders }
         )
         const data = await res.json().catch(() => ({}))
 
@@ -229,11 +232,14 @@ export default function TechnicianManageRequestsPage() {
 
     setUpdatingId(booking._id)
     try {
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(
         `${API_BASE}/api/bookings/${booking._id}/status`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify(payload),
         }
       )

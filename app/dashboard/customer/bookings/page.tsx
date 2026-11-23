@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { cn } from "@/lib/utils"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -104,9 +105,10 @@ export default function CustomerBookingsPage() {
   const cancelledNotifiedRef = useRef(false)
 
   const loadBookings = async (email: string) => {
+    const authHeaders = await getAuthHeaders()
     const res = await fetch(
       `${API_BASE}/api/bookings/customer?email=${encodeURIComponent(email)}`,
-      { cache: "no-store" }
+      { cache: "no-store", headers: authHeaders }
     )
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -169,9 +171,12 @@ export default function CustomerBookingsPage() {
       const verify = async () => {
         setVerifyingPayment(true)
         try {
+          const authHeaders = await getAuthHeaders({
+            "Content-Type": "application/json",
+          })
           const res = await fetch(`${API_BASE}/api/payments/verify-session`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: authHeaders,
             body: JSON.stringify({ sessionId }),
           })
 
@@ -262,12 +267,14 @@ export default function CustomerBookingsPage() {
 
     setCancelling(true)
     try {
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(
         `${API_BASE}/api/bookings/${cancelTarget._id}/cancel`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers: authHeaders,
           body: JSON.stringify({ customerEmail: userEmail }),
         }
       )
@@ -302,11 +309,14 @@ export default function CustomerBookingsPage() {
 
     setPayingBookingId(booking._id)
     try {
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(
         `${API_BASE}/api/payments/create-checkout-session`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify({
             bookingId: booking._id,
             customerEmail: userEmail,

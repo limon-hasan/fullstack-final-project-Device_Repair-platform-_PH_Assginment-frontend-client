@@ -11,6 +11,7 @@ import {
   Wrench,
 } from "lucide-react"
 import { toast } from "sonner"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { cn } from "@/lib/utils"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -85,8 +86,10 @@ export default function AdminAllBookingsPage() {
   const [searchQuery, setSearchQuery] = useState("")
 
   const fetchAllBookings = async () => {
+    const authHeaders = await getAuthHeaders()
     const res = await fetch(`${API_BASE}/api/admin/bookings?status=all`, {
       cache: "no-store",
+      headers: authHeaders,
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {

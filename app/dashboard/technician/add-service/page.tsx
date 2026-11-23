@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { uploadImageToImgBB } from "@/lib/imgbb"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -153,9 +154,13 @@ export default function AddServicePage() {
       const uploadedImageUrl = await uploadImageToImgBB(imageFile)
 
       setUploadStep("saving")
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
+
       const res = await fetch(`${API_BASE}/api/services`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders,
         body: JSON.stringify({
           title: trimmedTitle,
           category,

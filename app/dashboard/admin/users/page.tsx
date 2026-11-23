@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
+import { getAuthHeaders } from "@/lib/auth-token"
 import { cn } from "@/lib/utils"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
@@ -93,8 +94,10 @@ export default function AdminManageUsersPage() {
   )
 
   const fetchAllUsers = async () => {
+    const authHeaders = await getAuthHeaders()
     const res = await fetch(`${API_BASE}/api/admin/users?role=all`, {
       cache: "no-store",
+      headers: authHeaders,
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -181,11 +184,14 @@ export default function AdminManageUsersPage() {
 
     setUpdatingId(user._id)
     try {
+      const authHeaders = await getAuthHeaders({
+        "Content-Type": "application/json",
+      })
       const res = await fetch(
         `${API_BASE}/api/admin/users/${encodeURIComponent(user._id)}/role`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: authHeaders,
           body: JSON.stringify({
             role: nextRole,
             adminEmail,
