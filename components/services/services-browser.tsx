@@ -78,7 +78,7 @@ export function ServicesBrowser() {
         if (urlSearch) params.set("search", urlSearch)
         if (urlCategory && urlCategory !== "All")
           params.set("category", urlCategory)
-        if (urlMode && urlMode !== "All") params.set("mode", urlMode)
+        if (urlMode && urlMode !== "All") params.set("serviceMode", urlMode)
         if (urlSort) params.set("sort", urlSort)
 
         const res = await fetch(
