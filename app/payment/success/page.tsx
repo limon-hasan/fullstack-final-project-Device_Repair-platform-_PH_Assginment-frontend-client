@@ -51,6 +51,7 @@ function PaymentSuccessContent() {
   const [copied, setCopied] = useState(false)
 
   const verifiedRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!sessionId || verifiedRef.current === sessionId) return
     verifiedRef.current = sessionId
@@ -132,7 +133,7 @@ function PaymentSuccessContent() {
 
   if (status === "verifying") {
     return (
-      <div className="mx-auto flex min-h-[65vh] max-w-xl items-center justify-center">
+      <div className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center px-4 py-12">
         <div className="w-full rounded-3xl border border-border bg-card p-8 text-center shadow-sm sm:p-10">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -151,7 +152,7 @@ function PaymentSuccessContent() {
 
   if (status === "error" || !receipt) {
     return (
-      <div className="mx-auto flex min-h-[65vh] max-w-xl items-center justify-center">
+      <div className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center px-4 py-12">
         <div className="w-full rounded-3xl border border-border bg-card p-8 text-center shadow-sm sm:p-10">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-500">
             <AlertCircle className="h-8 w-8" />
@@ -184,9 +185,8 @@ function PaymentSuccessContent() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[68vh] max-w-xl items-center justify-center py-6">
+    <div className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center px-4 py-12">
       <div className="w-full rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-9">
-        {/* Success Icon & Title */}
         <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/15 text-emerald-500">
             <CheckCircle2 className="h-8 w-8" />
@@ -203,7 +203,6 @@ function PaymentSuccessContent() {
           </p>
         </div>
 
-        {/* Receipt Summary Box */}
         <div className="mt-7 divide-y divide-border/70 rounded-2xl border border-border/80 bg-background/60 px-5">
           <div className="flex items-center justify-between gap-4 py-3.5 text-sm">
             <span className="text-muted-foreground">Service</span>
@@ -246,7 +245,6 @@ function PaymentSuccessContent() {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/dashboard/customer/bookings"
@@ -272,7 +270,7 @@ export default function PaymentSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto flex min-h-[65vh] max-w-xl items-center justify-center">
+        <div className="mx-auto flex min-h-[70vh] max-w-xl items-center justify-center px-4 py-12">
           <div className="w-full rounded-3xl border border-border bg-card p-8 text-center shadow-sm">
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
             <p className="mt-4 text-sm text-muted-foreground">
