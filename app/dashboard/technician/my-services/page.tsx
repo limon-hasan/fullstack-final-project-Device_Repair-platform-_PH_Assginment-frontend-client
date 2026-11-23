@@ -306,9 +306,55 @@ export default function TechnicianMyServicesPage() {
     setEditImagePreview(URL.createObjectURL(file))
   }
 
+  const hasEditChanges = useMemo(() => {
+    if (!editingService) return false
+
+    const initialCategory = SERVICE_CATEGORIES.includes(
+      editingService.category as (typeof SERVICE_CATEGORIES)[number]
+    )
+      ? editingService.category
+      : SERVICE_CATEGORIES[0]
+
+    const initialMode = SERVICE_MODES.includes(
+      editingService.serviceMode as (typeof SERVICE_MODES)[number]
+    )
+      ? (editingService.serviceMode as string)
+      : SERVICE_MODES[0]
+
+    const initialDuration = (
+      editingService.estimatedDuration || "1-2 hours"
+    ).trim()
+
+    return (
+      editTitle.trim() !== (editingService.title || "").trim() ||
+      editCategory !== initialCategory ||
+      editDescription.trim() !== (editingService.description || "").trim() ||
+      Number(editBasePrice) !== Number(editingService.basePrice ?? 0) ||
+      editDuration.trim() !== initialDuration ||
+      editServiceMode !== initialMode ||
+      editServiceArea.trim() !== (editingService.serviceArea || "").trim() ||
+      editImageFile !== null
+    )
+  }, [
+    editingService,
+    editTitle,
+    editCategory,
+    editDescription,
+    editBasePrice,
+    editDuration,
+    editServiceMode,
+    editServiceArea,
+    editImageFile,
+  ])
+
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingService) return
+
+    if (!hasEditChanges) {
+      toast.info("No changes detected. Edit at least one field to save.")
+      return
+    }
 
     const trimmedTitle = editTitle.trim()
     const trimmedDesc = editDescription.trim()
@@ -989,8 +1035,8 @@ export default function TechnicianMyServicesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={savingEdit}
-                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-60"
+                  disabled={savingEdit || !hasEditChanges}
+                  className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {savingEdit && (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
