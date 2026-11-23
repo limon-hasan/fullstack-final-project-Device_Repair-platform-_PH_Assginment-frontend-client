@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   AlertTriangle,
   ArrowRight,
@@ -84,54 +85,135 @@ function formatDate(dateStr?: string) {
 }
 
 export default function CustomerBookingsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session } = authClient.useSession()
   const user = session?.user as { email?: string | null } | undefined
   const userEmail = user?.email || ""
 
   const [loading, setLoading] = useState(true)
+  const [verifyingPayment, setVerifyingPayment] = useState(false)
+  const [payingBookingId, setPayingBookingId] = useState<string | null>(null)
   const [bookings, setBookings] = useState<CustomerBooking[]>([])
   const [activeTab, setActiveTab] = useState<FilterTab>("all")
 
   const [cancelTarget, setCancelTarget] = useState<CustomerBooking | null>(null)
   const [cancelling, setCancelling] = useState(false)
 
+  const verifiedSessionRef = useRef<string | null>(null)
+  const cancelledNotifiedRef = useRef(false)
+
+  const loadBookings = async (email: string) => {
+    const res = await fetch(
+      `${API_BASE}/api/bookings/customer?email=${encodeURIComponent(email)}`,
+      { cache: "no-store" }
+    )
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to load your bookings.")
+    }
+    return Array.isArray(data.bookings)
+      ? (data.bookings as CustomerBooking[])
+      : []
+  }
+
   useEffect(() => {
     if (!userEmail) return
 
     let active = true
-    const loadBookings = async () => {
+    const init = async () => {
       setLoading(true)
       try {
-        const res = await fetch(
-          `${API_BASE}/api/bookings/customer?email=${encodeURIComponent(
-            userEmail
-          )}`,
-          { cache: "no-store" }
-        )
-        const data = await res.json().catch(() => ({}))
-
+        const list = await loadBookings(userEmail)
         if (!active) return
-
-        if (!res.ok) {
-          toast.error(data.message || "Failed to load your bookings.")
-          return
-        }
-
-        setBookings(Array.isArray(data.bookings) ? data.bookings : [])
-      } catch {
+        setBookings(list)
+      } catch (err) {
         if (active) {
-          toast.error("Network error while loading your bookings.")
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "Network error while loading your bookings."
+          )
         }
       } finally {
         if (active) setLoading(false)
       }
     }
 
-    loadBookings()
+    init()
     return () => {
       active = false
     }
   }, [userEmail])
+
+  // Verify Stripe Checkout return session
+  useEffect(() => {
+    const paymentStatusParam = searchParams.get("payment")
+    const sessionId = searchParams.get("session_id")
+
+    if (paymentStatusParam === "cancelled" && !cancelledNotifiedRef.current) {
+      cancelledNotifiedRef.current = true
+      toast.info("Stripe payment was cancelled.")
+      router.replace("/dashboard/customer/bookings")
+      return
+    }
+
+    if (
+      paymentStatusParam === "success" &&
+      sessionId &&
+      userEmail &&
+      verifiedSessionRef.current !== sessionId
+    ) {
+      verifiedSessionRef.current = sessionId
+
+      const verify = async () => {
+        setVerifyingPayment(true)
+        try {
+          const res = await fetch(`${API_BASE}/api/payments/verify-session`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          })
+
+          const data = await res.json().catch(() => ({}))
+
+          if (!res.ok) {
+            toast.error(data.message || "Could not verify Stripe payment.")
+            return
+          }
+
+          if (data.bookingId) {
+            setBookings((prev) =>
+              prev.map((item) =>
+                item._id === data.bookingId
+                  ? { ...item, paymentStatus: "paid" }
+                  : item
+              )
+            )
+          }
+
+          toast.success(
+            data.message || "Payment completed and verified via Stripe!"
+          )
+
+          try {
+            const refreshed = await loadBookings(userEmail)
+            setBookings(refreshed)
+          } catch {
+            // Local state is already updated above
+          }
+
+          router.replace("/dashboard/customer/bookings")
+        } catch {
+          toast.error("Network error while verifying Stripe payment.")
+        } finally {
+          setVerifyingPayment(false)
+        }
+      }
+
+      verify()
+    }
+  }, [searchParams, router, userEmail])
 
   const tabCounts = useMemo(() => {
     const activeSet = new Set(["requested", "accepted", "in-progress"])
@@ -212,8 +294,38 @@ export default function CustomerBookingsPage() {
     }
   }
 
-  const handlePayNowClick = () => {
-    toast.info("Stripe Checkout payment will be connected in Step 11.")
+  const handlePayNowClick = async (booking: CustomerBooking) => {
+    if (!userEmail) {
+      toast.error("Please sign in again to complete payment.")
+      return
+    }
+
+    setPayingBookingId(booking._id)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/payments/create-checkout-session`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            bookingId: booking._id,
+            customerEmail: userEmail,
+          }),
+        }
+      )
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) {
+        toast.error(data.message || "Could not start Stripe Checkout.")
+        setPayingBookingId(null)
+        return
+      }
+
+      window.location.assign(data.url)
+    } catch {
+      toast.error("Network error while starting Stripe Checkout.")
+      setPayingBookingId(null)
+    }
   }
 
   const tabs: { key: FilterTab; label: string; count: number }[] = [
@@ -225,6 +337,14 @@ export default function CustomerBookingsPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {/* Payment Verification Banner */}
+      {verifyingPayment && (
+        <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-semibold text-primary">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Verifying your Stripe payment and updating receipt...</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -329,6 +449,7 @@ export default function CustomerBookingsPage() {
             const amount = Number(booking.finalAmount ?? booking.basePrice ?? 0)
             const canCancel = statusKey === "requested"
             const canPay = statusKey === "completed" && paymentKey !== "paid"
+            const isPayingThis = payingBookingId === booking._id
 
             return (
               <article
@@ -522,11 +643,21 @@ export default function CustomerBookingsPage() {
                     {canPay && (
                       <button
                         type="button"
-                        onClick={handlePayNowClick}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                        disabled={isPayingThis || verifyingPayment}
+                        onClick={() => handlePayNowClick(booking)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        <CreditCard className="h-3.5 w-3.5" />
-                        Pay Now (${amount.toFixed(0)})
+                        {isPayingThis ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Redirecting...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-3.5 w-3.5" />
+                            Pay Now (${amount.toFixed(0)})
+                          </>
+                        )}
                       </button>
                     )}
 
