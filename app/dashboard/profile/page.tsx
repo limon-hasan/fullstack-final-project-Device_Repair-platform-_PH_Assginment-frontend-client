@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner"
 import { authClient } from "@/lib/auth-client"
 import { getAuthHeaders } from "@/lib/auth-token"
+import { getDashboardPath } from "@/lib/constants"
 import { uploadImageToImgBB } from "@/lib/imgbb"
 import { cn } from "@/lib/utils"
 
@@ -217,8 +218,9 @@ export default function UpdateProfilePage() {
         // Non-blocking fallback
       }
 
-      router.refresh()
       toast.success("Profile updated successfully!")
+      router.push(getDashboardPath(role))
+      router.refresh()
     } catch (err) {
       const msg =
         err instanceof Error
