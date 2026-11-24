@@ -1,72 +1,109 @@
-# FixMate — Smart Device & Home Appliance Repair Service Platform
+# FixMate — Smart Device & Home Appliance Repair Service Platform (Client)
 
-FixMate is a full-stack, role-based on-demand device and home appliance repair service booking platform. Verified technicians list repair services, customers browse and track repair requests through a server-enforced job pipeline, pay securely online via Stripe only after job completion, and admins moderate services, users, bookings, and platform revenue.
+![Next.js](https://img.shields.io/badge/Next.js-App%20Router-000000?style=for-the-badge&logo=nextdotjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-Styling-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![BetterAuth](https://img.shields.io/badge/BetterAuth-MongoDB%20Adapter-10B981?style=for-the-badge)
+![Stripe](https://img.shields.io/badge/Stripe-Checkout-635BFF?style=for-the-badge&logo=stripe&logoColor=white)
 
-## Live & Repository Links
+**FixMate** is a full-stack, role-based on-demand repair service marketplace connecting customers with verified device and home appliance technicians. Built with a transparent **Pay-After-Repair** model, customers can browse approved services, request repairs, track every stage of the job lifecycle, and complete secure Stripe payments only after the work is finished.
 
-- **Live Site:** https://fullstack-final-project-device-repa-ebon.vercel.app
-- **Backend API:** https://fullstack-final-project-device-repa.vercel.app
-- **Client Repository:** https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client
-- **Server Repository:** https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server
+---
+
+## Live Links & Repositories
+
+| Resource | Link |
+| :--- | :--- |
+| **Live Client App** | https://fullstack-final-project-device-repa-ebon.vercel.app |
+| **Live Backend API** | https://fullstack-final-project-device-repa.vercel.app |
+| **Client Repository** | https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client |
+| **Server Repository** | https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server |
+
+---
 
 ## Demo Credentials
 
+> Use the accounts below to test every role-based dashboard and workflow on the live site.
+
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| **Admin** | `kabul@kabul.com` | `_LIMON20102003I_` |
-| **Technician** | `tariq.tech@fixmate.com` | `_LIMON20102003I_` |
-| **Customer** | `maksudulhasanlimon@gmail.com` | `_LIMON20102003I_` |
+| **Admin** | `kabul@kabul.com` | `_LIMON20102003l_` |
+| **Technician** | `tariq.tech@fixmate.com` | `_LIMON20102003l_` |
+| **Customer** | `maksudulhasanlimon@gmail.com` | `_LIMON20102003l_` |
+
+---
+
+## Purpose
+
+Finding trustworthy repair technicians for smartphones, laptops, ACs, refrigerators, and home appliances is often stressful due to unclear pricing, lack of job visibility, and upfront payment risks. **FixMate** solves this for all three stakeholders:
+
+- **Customers** discover admin-approved services, send structured repair requests, monitor live status changes, and pay online via Stripe only after completion.
+- **Technicians** list repair services with ImgBB-hosted banners, manage incoming requests through a strict workflow, set final repair amounts, and track earnings.
+- **Admins** moderate service listings before publication, manage platform user roles, oversee all repair bookings, and monitor platform-wide Stripe revenue.
+
+---
 
 ## Key Features
 
-- **Role-Based Access Control (Customer, Technician, Admin):** Authentication powered by BetterAuth with MongoDB Adapter and JWT verification middlewares (`verifyToken`, `verifyCustomer`, `verifyTechnician`, `verifyAdmin`).
-- **Server-Side Search, Filter & Sort:** Browse approved services on `/services` with URL-persisted MongoDB search, category/service-mode filtering, and price/date sorting.
-- **Technician Service Management (Full CRUD):** Add services with ImgBB photo uploads, edit listings (automatically resets approval status to `pending`), toggle public availability, and delete with confirmation modals.
-- **Server-Enforced Job Status Pipeline:** Strict transitions (`requested` → `accepted` / `rejected` → `in-progress` → `completed` with final amount, or customer `cancelled` while `requested`) plus duplicate active booking prevention.
-- **Pay-After-Service Stripe Integration:** Customers pay only after a job is marked `completed` and `unpaid`, verified securely via Stripe Checkout & Webhook without duplicate payment records.
-- **Admin Moderation & Analytics:** Approve or reject technician listings, manage user roles (preventing self-demotion), monitor all bookings, and track Stripe transactions and total revenue with dashboard charts.
-- **Live Profile Sync & Dark/Light Mode:** Update user profile details and ImgBB avatar with instant Navbar/Topbar session sync, alongside full dark/light theme support.
+### Authentication & Role-Based Access Control
+- **BetterAuth with MongoDB Adapter:** Supports Email/Password authentication with custom user fields (`role`, `phone`, `area`, `bio`).
+- **Server-Side Role Sanitization:** Self-registration strictly allows `customer` or `technician` roles; any attempt to inject `admin` is automatically coerced to `customer`.
+- **Protected Routes & Reload Persistence:** Role-guarded dashboards redirect unauthenticated users to `/sign-in` (preserving return URLs) and prevent cross-role access without breaking on page reloads.
+
+### Discovery, Search & Filtering (Server-Side)
+- **Browse Approved Services (`/services`):** Displays only `approved` and `isAvailable: true` services in a responsive grid.
+- **MongoDB-Powered Querying:** Full server-side search (title/category), filters (category & service mode), and sorting (Price Low–High, High–Low, Newest) synced with URL query parameters (e.g., `/services?category=AC`) so state persists across reloads.
+- **Rich Service Details (`/services/[id]`):** Displays full service breakdown, technician summary (name, photo, area, bio), and role-restricted repair request modal with duplicate active request prevention.
+
+### Role-Specific Dashboards
+- **Customer Dashboard (`/dashboard/customer`):** Overview stats & charts, **My Bookings** (with Cancel confirmation modal for `requested` jobs and **Pay Now** button unlocked strictly for `completed` + `unpaid` jobs), and **Payment History**.
+- **Technician Dashboard (`/dashboard/technician`):** Overview stats, **Add Service** (ImgBB file upload), **My Services** (Edit resets approval to `pending`, availability toggle, Delete confirmation modal), and **Manage Requests** (status filter, Reject confirmation modal, and final amount modal on completion).
+- **Admin Dashboard (`/dashboard/admin`):** Platform overview stats & visualizations, **Manage Users** (role management with self-demotion protection), **Service Approval** queue (`Pending` / `Approved` / `Rejected`), **All Bookings**, and **Transactions** with total revenue.
+- **Shared Profile Management (`/dashboard/profile`):** Update name, phone, area, bio, and profile photo via ImgBB with live navbar/top-bar synchronization.
+
+### Payments & UX Polish
+- **Stripe Checkout (Test Mode):** Pay-after-repair workflow with dedicated `/payment/success` and `/payment/cancel` flows verified against the backend.
+- **Complete UI States:** Custom `loading.tsx` skeletons/spinners, repair-themed `not-found.tsx` (404), `error.tsx` boundary, friendly empty states with CTAs, toast notifications, confirmation modals, and responsive Dark/Light mode toggle.
+
+---
+
+## Application Routes
+
+| Route | Access | Description |
+| :--- | :--- | :--- |
+| `/` | Public | Hero banner, 6 latest featured services, How It Works, Popular Categories |
+| `/services` | Public | Server-side search, filter, and sort across approved services |
+| `/services/[id]` | Public | Service details, technician profile, customer-only request modal |
+| `/about` | Public | How FixMate Works & platform details |
+| `/sign-in`, `/sign-up` | Public | Authentication forms (auto-redirects logged-in users) |
+| `/payment/success`, `/payment/cancel` | Customer | Stripe checkout verification and cancellation feedback |
+| `/dashboard/customer/*` | Customer | Overview, My Bookings, Payment History |
+| `/dashboard/technician/*` | Technician | Overview, Add Service, My Services, Manage Requests |
+| `/dashboard/admin/*` | Admin | Overview, Manage Users, Service Approval, All Bookings, Transactions |
+| `/dashboard/profile` | Authenticated | Shared profile & ImgBB avatar management |
+
+---
 
 ## Tech Stack & NPM Packages
 
-### Frontend
-- **Framework & Language:** `next` (App Router), `react`, `react-dom`, `typescript`
-- **Styling & UI:** `tailwindcss`, `lucide-react`, `sonner`, `clsx`, `tailwind-merge`
-- **Authentication:** `better-auth`, `mongodb`
+| Package | Purpose |
+| :--- | :--- |
+| `next` | React framework using App Router |
+| `react` & `react-dom` | Core UI library |
+| `typescript` | Static type safety |
+| `tailwindcss` | Utility-first responsive styling |
+| `better-auth` | Authentication & session management |
+| `@better-auth/mongo-adapter` | MongoDB persistence for BetterAuth |
+| `mongodb` | Official MongoDB driver for BetterAuth connection |
+| `lucide-react` | Consistent icon library |
+| `sonner` | Toast notifications for auth, CRUD, and payment actions |
+| `recharts` | Dashboard analytics charts and data visualizations |
 
-### Backend
-- **Server & Database:** `express`, `mongodb`, `cors`, `dotenv`
-- **Auth & Payments:** `jsonwebtoken`, `stripe`
+---
 
-## Environment Variables
+## Local Setup & Installation
 
-### Client (`.env.local`)
-```env
-BETTER_AUTH_SECRET=your_better_auth_secret
-BETTER_AUTH_URL=http://localhost:3000
-BETTER_AUTH_DB_URI=your_mongodb_connection_uri
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
-```
-
-### Server (`.env`)
-```env
-PORT=8000
-MONGODB_URI=your_mongodb_connection_uri
-CLIENT_URL=http://localhost:3000
-JWT_SECRET=your_jwt_secret
-STRIPE_SECRET_KEY=your_stripe_test_secret_key
-STRIPE_WEBHOOK_SECRET=your_stripe_webhook_signing_secret
-```
-
-## Running Locally
-
+### 1. Clone the repository
 ```bash
-# 1. Start the backend server
-npm install
-npm run dev
-
-# 2. Start the frontend client
-npm install
-npm run dev
-```
+git clone [https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client.git](https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client.git)
+cd fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client
