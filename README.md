@@ -1,12 +1,12 @@
-# FixMate — Repair Service Marketplace API (Server)
+# FixMate — Smart Device & Home Appliance Repair Service Platform (Client)
 
-![Node.js](https://img.shields.io/badge/Node.js-Runtime-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Express.js](https://img.shields.io/badge/Express.js-REST%20API-000000?style=for-the-badge&logo=express&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-fixmatedb-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-Role%20Auth-D63AFF?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
-![Stripe](https://img.shields.io/badge/Stripe-Checkout%20%26%20Webhook-635BFF?style=for-the-badge&logo=stripe&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-App%20Router-000000?style=for-the-badge&logo=nextdotjs)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-Styling-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![BetterAuth](https://img.shields.io/badge/BetterAuth-MongoDB%20Adapter-10B981?style=for-the-badge)
+![Stripe](https://img.shields.io/badge/Stripe-Checkout-635BFF?style=for-the-badge&logo=stripe&logoColor=white)
 
-The RESTful backend server powering **FixMate**, a smart device and home appliance repair service platform. It handles MongoDB persistence, JWT-based role authorization, server-side search/filter/sort, strict repair job state transitions, and idempotent Stripe Checkout & Webhook payment processing.
+**FixMate** is a full-stack, role-based on-demand repair service marketplace connecting customers with verified device and home appliance technicians. Built with a transparent **Pay-After-Repair** model, customers can browse approved services, request repairs, track every stage of the job lifecycle, and complete secure Stripe payments only after the work is finished.
 
 ---
 
@@ -14,14 +14,16 @@ The RESTful backend server powering **FixMate**, a smart device and home applian
 
 | Resource | Link |
 | :--- | :--- |
-| **Live Server API** | [https://fullstack-final-project-device-repa.vercel.app](https://fullstack-final-project-device-repa.vercel.app) |
 | **Live Client App** | [https://fullstack-final-project-device-repa-ebon.vercel.app](https://fullstack-final-project-device-repa-ebon.vercel.app) |
-| **Server Repository** | [https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server](https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server) |
+| **Live Backend API** | [https://fullstack-final-project-device-repa.vercel.app](https://fullstack-final-project-device-repa.vercel.app) |
 | **Client Repository** | [https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client](https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client) |
+| **Server Repository** | [https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server](https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server) |
 
 ---
 
-## Admin & Test Credentials (Live Environment)
+## Demo Credentials
+
+> Use the accounts below to test every role-based dashboard and workflow on the live site.
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
@@ -31,98 +33,71 @@ The RESTful backend server powering **FixMate**, a smart device and home applian
 
 ---
 
-## Key Backend Features
+## Purpose
 
-- **Custom JWT & Role-Based Middlewares:** Every protected endpoint is guarded by `verifyToken` alongside role-specific middlewares (`verifyCustomer`, `verifyTechnician`, `verifyAdmin`). Missing/invalid tokens return `401 Unauthorized`; mismatched roles return `403 Forbidden`.
-- **Ownership Enforcement:** Customers can only read, cancel, or pay for their own bookings; technicians can only edit/delete their own services and update status on jobs assigned to them.
-- **Server-Side Search, Filter & Sort:** MongoDB query pipelines handle search (`title` / `category`), filtering (`category`, `serviceMode`), and sorting (`price_asc`, `price_desc`, `newest`) directly at the database layer.
-- **Strict Job Status Pipeline:** Enforces linear, server-validated job transitions:
-  - `requested` → `accepted` or `rejected` (Technician owner only)
-  - `requested` → `cancelled` (Customer owner only)
-  - `accepted` → `in-progress` (Technician owner only)
-  - `in-progress` → `completed` (Technician owner only; requires positive `finalAmount > 0`)
-  - Any invalid transition (e.g., `requested` → `completed`, or mutating a `cancelled`/`rejected` booking) is rejected with `400 Bad Request`.
-- **Duplicate Active Request Prevention:** Blocks a customer from creating multiple active bookings (`requested`, `accepted`, or `in-progress`) for the same service.
-- **Secure Pay-After-Repair Stripe Integration:**
-  - Checkout sessions are only created for bookings owned by the logged-in customer with `status: "completed"` and `paymentStatus: "unpaid"`.
-  - Charge amounts are read strictly from `booking.finalAmount` in MongoDB (never trusted from client payloads).
-  - **Idempotent Payment Recording:** Verified via both Stripe Webhook (`checkout.session.completed`) and `/api/payments/verify` using atomic upsert logic and a **unique index on `stripeSessionId`**, guaranteeing zero duplicate payment documents even on webhook retries.
+Finding trustworthy repair technicians for smartphones, laptops, ACs, refrigerators, and home appliances is often stressful due to unclear pricing, lack of job visibility, and upfront payment risks. **FixMate** solves this for all three stakeholders:
+
+- **Customers** discover admin-approved services, send structured repair requests, monitor live status changes, and pay online via Stripe only after completion.
+- **Technicians** list repair services with ImgBB-hosted banners, manage incoming requests through a strict workflow, set final repair amounts, and track earnings.
+- **Admins** moderate service listings before publication, manage platform user roles, oversee all repair bookings, and monitor platform-wide Stripe revenue.
 
 ---
 
-## Database Architecture (`fixmatedb`)
+## Key Features
 
-The server operates on 4 core collections alongside BetterAuth's auto-managed auth collections (`account`, `session`, `verification`):
+### Authentication & Role-Based Access Control
+- **BetterAuth with MongoDB Adapter:** Supports Email/Password authentication with custom user fields (`role`, `phone`, `area`, `bio`).
+- **Server-Side Role Sanitization:** Self-registration strictly allows `customer` or `technician` roles; any attempt to inject `admin` is automatically coerced to `customer`.
+- **Protected Routes & Reload Persistence:** Role-guarded dashboards redirect unauthenticated users to `/sign-in` (preserving return URLs) and prevent cross-role access without breaking on page reloads.
 
-| Collection | Primary Purpose | Key Relations |
+### Discovery, Search & Filtering (Server-Side)
+- **Browse Approved Services (`/services`):** Displays only `approved` and `isAvailable: true` services in a responsive grid.
+- **MongoDB-Powered Querying:** Full server-side search (title/category), filters (category & service mode), and sorting (Price Low–High, High–Low, Newest) synced with URL query parameters (e.g., `/services?category=AC`) so state persists across reloads.
+- **Rich Service Details (`/services/[id]`):** Displays full service breakdown, technician summary (name, photo, area, bio), and role-restricted repair request modal with duplicate active request prevention.
+
+### Role-Specific Dashboards
+- **Customer Dashboard (`/dashboard/customer`):** Overview stats & charts, **My Bookings** (with Cancel confirmation modal for `requested` jobs and **Pay Now** button unlocked strictly for `completed` + `unpaid` jobs), and **Payment History**.
+- **Technician Dashboard (`/dashboard/technician`):** Overview stats, **Add Service** (ImgBB file upload), **My Services** (Edit resets approval to `pending`, availability toggle, Delete confirmation modal), and **Manage Requests** (status filter, Reject confirmation modal, and final amount modal on completion).
+- **Admin Dashboard (`/dashboard/admin`):** Platform overview stats & visualizations, **Manage Users** (role management with self-demotion protection), **Service Approval** queue (`Pending` / `Approved` / `Rejected`), **All Bookings**, and **Transactions** with total revenue.
+- **Shared Profile Management (`/dashboard/profile`):** Update name, phone, area, bio, and profile photo via ImgBB with live navbar/top-bar synchronization.
+
+### Payments & UX Polish
+- **Stripe Checkout (Test Mode):** Pay-after-repair workflow with dedicated `/payment/success` and `/payment/cancel` flows verified against the backend.
+- **Complete UI States:** Custom `loading.tsx` skeletons/spinners, repair-themed `not-found.tsx` (404), `error.tsx` boundary, friendly empty states with CTAs, toast notifications, confirmation modals, and responsive Dark/Light mode toggle.
+
+---
+
+## Application Routes
+
+| Route | Access | Description |
 | :--- | :--- | :--- |
-| `user` | Stores all users, roles (`customer` \| `technician` \| `admin`), and profile info | Linked via unique `email` |
-| `services` | Repair listings created by technicians and moderated by admins | `technicianEmail` → `user.email` |
-| `bookings` | Customer repair requests, job status pipeline, `finalAmount`, and `paymentStatus` | `serviceId` → `services._id` |
-| `payments` | Verified Stripe transaction records with unique `stripeSessionId` index | `bookingId` → `bookings._id` |
+| `/` | Public | Hero banner, 6 latest featured services, How It Works, Popular Categories |
+| `/services` | Public | Server-side search, filter, and sort across approved services |
+| `/services/[id]` | Public | Service details, technician profile, customer-only request modal |
+| `/about` | Public | How FixMate Works & platform details |
+| `/sign-in`, `/sign-up` | Public | Authentication forms (auto-redirects logged-in users) |
+| `/payment/success`, `/payment/cancel` | Customer | Stripe checkout verification and cancellation feedback |
+| `/dashboard/customer/*` | Customer | Overview, My Bookings, Payment History |
+| `/dashboard/technician/*` | Technician | Overview, Add Service, My Services, Manage Requests |
+| `/dashboard/admin/*` | Admin | Overview, Manage Users, Service Approval, All Bookings, Transactions |
+| `/dashboard/profile` | Authenticated | Shared profile & ImgBB avatar management |
 
 ---
 
-## API Endpoints Reference
-
-### Public Routes
-| Method | Endpoint | Access | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/services` | Public | Fetch approved & available services with search, filter, sort, and limit |
-| `GET` | `/api/services/:id` | Public | Fetch single approved & available service with technician profile |
-
-### Shared Authenticated Routes
-| Method | Endpoint | Middlewares | Description |
-| :--- | :--- | :--- | :--- |
-| `PATCH` | `/api/users/profile` | `verifyToken` | Update profile (`name`, `phone`, `area`, `bio`, `image`) and sync technician name |
-
-### Customer Routes
-| Method | Endpoint | Middlewares | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/bookings` | `verifyToken`, `verifyCustomer` | Create a new repair request (blocks duplicate active requests) |
-| `GET` | `/api/bookings/my` | `verifyToken`, `verifyCustomer` | Get all bookings belonging to the authenticated customer |
-| `PATCH` | `/api/bookings/:id/cancel` | `verifyToken`, `verifyCustomer` | Cancel own booking while status is `requested` |
-| `POST` | `/api/payments/create-checkout-session` | `verifyToken`, `verifyCustomer` | Create Stripe Checkout session for own `completed` & `unpaid` booking |
-| `GET` | `/api/payments/verify` | `verifyToken`, `verifyCustomer` | Verify Stripe Checkout session and record payment idempotently |
-| `GET` | `/api/payments/my` | `verifyToken`, `verifyCustomer` | Retrieve customer's Stripe payment history |
-
-### Technician Routes
-| Method | Endpoint | Middlewares | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/services` | `verifyToken`, `verifyTechnician` | Create a new service (saved with `approvalStatus: "pending"`) |
-| `GET` | `/api/services/my` | `verifyToken`, `verifyTechnician` | Fetch all services created by the logged-in technician |
-| `PATCH` | `/api/services/:id` | `verifyToken`, `verifyTechnician` | Update own service (resets `approvalStatus` to `pending`) or toggle availability |
-| `DELETE` | `/api/services/:id` | `verifyToken`, `verifyTechnician` | Delete own service |
-| `GET` | `/api/bookings/technician` | `verifyToken`, `verifyTechnician` | Fetch incoming repair jobs assigned to the logged-in technician |
-| `PATCH` | `/api/bookings/:id/status` | `verifyToken`, `verifyTechnician` | Advance job status through validated pipeline & set `finalAmount` on completion |
-
-### Admin Routes
-| Method | Endpoint | Middlewares | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/admin/users` | `verifyToken`, `verifyAdmin` | List all platform users |
-| `PATCH` | `/api/admin/users/:id/role` | `verifyToken`, `verifyAdmin` | Change a user's role (blocks admin self-role modification) |
-| `GET` | `/api/admin/services` | `verifyToken`, `verifyAdmin` | List all services across all approval statuses |
-| `PATCH` | `/api/admin/services/:id/approval` | `verifyToken`, `verifyAdmin` | Approve or reject a technician's service |
-| `GET` | `/api/admin/bookings` | `verifyToken`, `verifyAdmin` | View all platform bookings |
-| `GET` | `/api/admin/payments` | `verifyToken`, `verifyAdmin` | View all platform payments and total revenue |
-
-### Stripe Webhook
-| Method | Endpoint | Security | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/payments/webhook` | `stripe-signature` + raw body | Processes `checkout.session.completed` events atomically |
-
----
-
-## NPM Packages Used
+## Tech Stack & NPM Packages
 
 | Package | Purpose |
 | :--- | :--- |
-| `express` | Web server and REST API routing |
-| `mongodb` | Official MongoDB driver (`fixmatedb`) |
-| `stripe` | Stripe Checkout sessions and Webhook signature verification |
-| `jsonwebtoken` | JWT issuance and verification |
-| `cors` | Cross-Origin Resource Sharing configuration |
-| `dotenv` | Environment variable management |
+| `next` | React framework using App Router |
+| `react` & `react-dom` | Core UI library |
+| `typescript` | Static type safety |
+| `tailwindcss` | Utility-first responsive styling |
+| `better-auth` | Authentication & session management |
+| `@better-auth/mongo-adapter` | MongoDB persistence for BetterAuth |
+| `mongodb` | Official MongoDB driver for BetterAuth connection |
+| `lucide-react` | Consistent icon library |
+| `sonner` | Toast notifications for auth, CRUD, and payment actions |
+| `recharts` | Dashboard analytics charts and data visualizations |
 
 ---
 
@@ -130,8 +105,8 @@ The server operates on 4 core collections alongside BetterAuth's auto-managed au
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server.git
-cd fullstack-final-project-Device_Repair-platform-_PH_Assginment-backend-server
+git clone https://github.com/limon-hasan/fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client.git
+cd fullstack-final-project-Device_Repair-platform-_PH_Assginment-frontend-client
 ```
 
 ### 2. Install dependencies
@@ -140,31 +115,22 @@ npm install
 ```
 
 ### 3. Configure Environment Variables
-Create a `.env` file in the root directory:
+Create a `.env.local` file in the root directory:
 
 ```env
-PORT=5000
-MONGODB_URI=your_mongodb_connection_uri
-JWT_SECRET=your_jwt_secret_key
-CLIENT_URL=http://localhost:3000
-STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
-STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
+BETTER_AUTH_SECRET=your_better_auth_secret
+BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_DB_URI=your_mongodb_connection_uri
+BETTER_AUTH_TRUSTED_ORIGINS=http://localhost:3000
+
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
 ```
 
-### 4. Run the Server
+### 4. Run the Development Server
 ```bash
-# Development
 npm run dev
-
-# Production
-npm start
 ```
 
-### 5. Stripe Webhook Setup (Production)
-Configure a webhook destination in the **Stripe Test Dashboard** listening to `checkout.session.completed` pointing to:
-
-```text
-https://fullstack-final-project-device-repa.vercel.app/api/payments/webhook
-```
-
-Save the generated signing secret (`whsec_...`) in your deployment environment as `STRIPE_WEBHOOK_SECRET`.
+Open http://localhost:3000 in your browser.
