@@ -256,7 +256,7 @@ export default function CustomerPaymentsPage() {
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden overflow-x-auto xl:block">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-border bg-muted/40 text-xs tracking-wider text-muted-foreground uppercase">
                   <tr>
@@ -334,7 +334,7 @@ export default function CustomerPaymentsPage() {
             </div>
 
             {/* Mobile Cards */}
-            <div className="divide-y divide-border/70 md:hidden">
+            <div className="divide-y divide-border/70 xl:hidden">
               {payments.map((payment) => {
                 const txnId =
                   payment.transactionId ||
@@ -345,7 +345,7 @@ export default function CustomerPaymentsPage() {
                 return (
                   <div key={payment._id} className="space-y-3 p-5">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-heading text-sm font-bold text-foreground">
                           {payment.serviceTitle || "Repair Service"}
                         </p>
@@ -356,7 +356,7 @@ export default function CustomerPaymentsPage() {
                             "—"}
                         </p>
                       </div>
-                      <p className="font-heading text-base font-extrabold text-foreground">
+                      <p className="shrink-0 font-heading text-base font-extrabold text-foreground">
                         {formatAmount(payment.amount, payment.currency)}
                       </p>
                     </div>

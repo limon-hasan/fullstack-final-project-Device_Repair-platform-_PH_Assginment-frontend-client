@@ -310,7 +310,7 @@ export default function AdminAllBookingsPage() {
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="hidden overflow-hidden rounded-3xl border border-border bg-card shadow-sm lg:block">
+          <div className="hidden overflow-hidden rounded-3xl border border-border bg-card shadow-sm xl:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -431,7 +431,7 @@ export default function AdminAllBookingsPage() {
           </div>
 
           {/* Mobile / Tablet Card View */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:hidden">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:hidden">
             {filteredBookings.map((booking) => {
               const statusKey = (booking.status || "requested").toLowerCase()
               const isPaid =

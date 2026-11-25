@@ -557,7 +557,7 @@ export default function AdminOverviewPage() {
               </div>
 
               {/* Legend */}
-              <div className="grid w-full grid-cols-2 gap-2.5">
+              <div className="grid w-full grid-cols-1 gap-2.5 min-[360px]:grid-cols-2">
                 {donutSlices.items.map((slice) => (
                   <div
                     key={slice.key}
@@ -743,7 +743,7 @@ export default function AdminOverviewPage() {
               {pendingServices.map((service) => (
                 <div
                   key={service._id}
-                  className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-muted/25"
+                  className="flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-muted/25 sm:flex-row sm:items-center sm:justify-between sm:px-6"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     {service.image ? (
@@ -768,7 +768,7 @@ export default function AdminOverviewPage() {
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-3">
+                  <div className="flex w-full shrink-0 items-center justify-between gap-3 sm:w-auto sm:justify-end">
                     <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
                       <Clock className="h-3 w-3" />
                       Pending

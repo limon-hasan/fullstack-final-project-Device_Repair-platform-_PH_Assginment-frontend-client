@@ -371,7 +371,7 @@ export default function AdminServiceApprovalPage() {
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="hidden overflow-hidden rounded-3xl border border-border bg-card shadow-sm lg:block">
+          <div className="hidden overflow-hidden rounded-3xl border border-border bg-card shadow-sm xl:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -407,12 +407,12 @@ export default function AdminServiceApprovalPage() {
                               </div>
                             )}
                             <div className="min-w-0">
-                              <p className="max-w-xs truncate font-semibold text-foreground">
+                              <p className="max-w-[260px] truncate font-semibold text-foreground">
                                 {service.title}
                               </p>
                               <p
                                 title={service.description}
-                                className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground"
+                                className="mt-0.5 max-w-[260px] truncate text-xs text-muted-foreground"
                               >
                                 {service.description}
                               </p>
@@ -497,7 +497,7 @@ export default function AdminServiceApprovalPage() {
           </div>
 
           {/* Mobile / Tablet Card View */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:hidden">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:hidden">
             {filteredServices.map((service) => {
               const statusKey = getApprovalKey(service)
               const isUpdating = updatingId === service._id
@@ -509,7 +509,7 @@ export default function AdminServiceApprovalPage() {
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
                         {service.image ? (
                           <img
                             src={service.image}
@@ -521,7 +521,7 @@ export default function AdminServiceApprovalPage() {
                             <Wrench className="h-6 w-6" />
                           </div>
                         )}
-                        <div>
+                        <div className="min-w-0">
                           <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                             {service.category}
                           </span>
@@ -530,7 +530,7 @@ export default function AdminServiceApprovalPage() {
                           </h3>
                         </div>
                       </div>
-                      {renderStatusBadge(service)}
+                      <div className="shrink-0">{renderStatusBadge(service)}</div>
                     </div>
 
                     <p className="mt-3 text-xs leading-relaxed text-muted-foreground">

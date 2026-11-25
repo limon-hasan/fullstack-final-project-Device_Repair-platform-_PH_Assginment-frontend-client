@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react"
 import { toast } from "sonner"
+import { PageLoader } from "@/components/shared/loading-skeletons"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 
@@ -193,10 +194,7 @@ export default function DashboardLayout({
   if (isPending || !session?.user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          Loading workspace...
-        </div>
+        <PageLoader className="min-h-0 py-0" hint="Verifying your session" />
       </div>
     )
   }

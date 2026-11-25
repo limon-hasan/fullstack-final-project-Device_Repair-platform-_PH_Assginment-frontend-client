@@ -608,7 +608,7 @@ export default function CustomerBookingsPage() {
                               <div className="min-w-0">
                                 <p
                                   className={cn(
-                                    "truncate text-xs font-semibold",
+                                    "text-xs leading-tight font-semibold break-words",
                                     isDone || isCurrent
                                       ? "text-foreground"
                                       : "text-muted-foreground"

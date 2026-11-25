@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google"
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
+import { InitialPageLoader } from "@/components/shared/initial-page-loader"
 import { cn } from "@/lib/utils"
 import "./globals.css"
 
@@ -43,6 +44,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <ThemeProvider>
+          <InitialPageLoader />
           {children}
           <Toaster richColors position="top-right" closeButton />
         </ThemeProvider>

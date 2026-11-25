@@ -328,7 +328,7 @@ export default function AdminManageUsersPage() {
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="hidden overflow-hidden rounded-3xl border border-border bg-card shadow-sm lg:block">
+          <div className="hidden overflow-hidden rounded-3xl border border-border bg-card shadow-sm xl:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-border bg-muted/40 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
@@ -448,7 +448,7 @@ export default function AdminManageUsersPage() {
           </div>
 
           {/* Mobile / Tablet Card View */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:hidden">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:hidden">
             {filteredUsers.map((u) => {
               const role = normalizeRole(u.role)
               const isSelf =
@@ -462,7 +462,7 @@ export default function AdminManageUsersPage() {
                 >
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
                         {u.image ? (
                           <img
                             src={u.image}
